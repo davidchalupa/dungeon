@@ -5,30 +5,52 @@ import pygame
 
 # Initialize Pygame
 pygame.init()
-WIDTH, HEIGHT = 640, 480
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Sharp High-Res Dungeon Engine (Optimized Proximity)")
+
+# Window Display Resolution
+WINDOW_WIDTH, WINDOW_HEIGHT = 640, 480
+window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+pygame.display.set_caption("Dungeon Engine - High Speed & Bright")
+
+# High-Resolution Rendering Surface (Double horizontal ray density for anti-aliasing)
+RENDER_WIDTH, RENDER_HEIGHT = 1280, 480
+screen = pygame.Surface((RENDER_WIDTH, RENDER_HEIGHT))
+
 clock = pygame.time.Clock()
 
 
 # ==========================================
-# HIGH-RES PROCEDURAL TEXTURES (256x256) - SHARP
+# PROCEDURAL TEXTURES (256x256) - VIBRANT & FAST
 # ==========================================
-def create_brick_texture():
+def create_running_bond_brick_texture():
   tex_size = 256
   surf = pygame.Surface((tex_size, tex_size))
-  surf.fill((110, 110, 120))  # Base gray stone color
-  mortar_color = (45, 45, 55)
+  surf.fill((80, 80, 90))  # Bright, crisp base mortar background
 
   brick_h = 32
   brick_w = 64
-  for y in range(0, tex_size, brick_h):
-    pygame.draw.line(surf, mortar_color, (0, y), (tex_size - 1, y), 3)
+  random.seed(42)
 
-  for y_idx, y in enumerate(range(0, tex_size, brick_h)):
-    offset = (y_idx % 2) * (brick_w // 2)
-    for x in range(-offset, tex_size + brick_w, brick_w):
-      pygame.draw.line(surf, mortar_color, (x, y), (x, y + brick_h), 3)
+  for y in range(0, tex_size, brick_h):
+    row_idx = y // brick_h
+    offset = (row_idx % 2) * (brick_w // 2)
+    pygame.draw.line(surf, (45, 45, 55), (0, y), (tex_size, y), 3)
+
+    for x in range(-brick_w + offset, tex_size + brick_w, brick_w):
+      bx = x + 2
+      by = y + 3
+      bw = brick_w - 4
+      bh = brick_h - 4
+
+      c_var = random.randint(-10, 10)
+      brick_color = (
+          max(100, min(190, 135 + c_var)),
+          max(100, min(190, 135 + c_var)),
+          max(110, min(200, 145 + c_var)),
+      )
+      pygame.draw.rect(surf, brick_color, (bx, by, bw, bh))
+      pygame.draw.line(
+          surf, (45, 45, 55), (x + brick_w, y), (x + brick_w, y + brick_h), 3
+      )
 
   return surf
 
@@ -41,19 +63,18 @@ def create_organic_texture():
   for y in range(tex_size):
     for x in range(tex_size):
       noise = (
-          100
+          140
           + int(20 * math.sin(x * 0.1) * math.cos(y * 0.1))
-          + random.randint(-18, 18)
+          + random.randint(-15, 15)
       )
-      color_val = max(40, min(200, noise))
-      surf.set_at((x, y), (color_val, color_val, color_val + 5))
+      color_val = max(80, min(230, noise))
+      surf.set_at((x, y), (color_val, color_val, color_val + 10))
 
   return surf
 
 
-# Texture Registry (1 = Default Brick Mesh, 2 = Alternative Organic Stone)
 TEXTURES = {
-    1: create_brick_texture(),
+    1: create_running_bond_brick_texture(),
     2: create_organic_texture(),
 }
 
@@ -62,7 +83,7 @@ TEXTURES = {
 # ==========================================
 LEVELS = {
     1: {
-        "name": "Level 1: The Stone Keep (Default Bricks)",
+        "name": "Level 1: The Stone Keep (Running Bond Bricks)",
         "texture_id": 1,
         "map": [
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -94,19 +115,16 @@ level_data = LEVELS[current_level_id]
 WORLD_MAP = level_data["map"]
 active_texture_id = level_data["texture_id"]
 
-# Player Position & Camera Parameters
 posX, posY = 1.5, 1.5
 dirX, dirY = -1.0, 0.0
-planeX, planeY = 0.0, 0.4  # Balanced FOV to minimize edge skewing
+planeX, planeY = 0.0, 0.4
 
 MOVE_SPEED = 0.04
 ROT_SPEED = 0.035
-PLAYER_RADIUS = (
-    0.42  # Larger buffer prevents getting close enough to trigger wall-shearing
-)
+PLAYER_RADIUS = 0.35
 
-CEILING_COLOR = (25, 25, 35)
-FLOOR_COLOR = (45, 40, 35)
+CEILING_COLOR = (40, 40, 50)
+FLOOR_COLOR = (60, 50, 40)
 
 
 def load_level(level_id):
@@ -143,7 +161,6 @@ while running:
   if keys[pygame.K_ESCAPE]:
     running = False
 
-  # Movement handling with collision buffer
   if keys[pygame.K_UP]:
     newX = posX + dirX * MOVE_SPEED
     newY = posY + dirY * MOVE_SPEED
@@ -159,7 +176,6 @@ while running:
     if can_move_to(posX, newY):
       posY = newY
 
-  # Rotation handling
   if keys[pygame.K_LEFT]:
     oldDirX = dirX
     dirX = dirX * math.cos(ROT_SPEED) - dirY * math.sin(ROT_SPEED)
@@ -177,16 +193,19 @@ while running:
         oldPlaneX * math.sin(-ROT_SPEED) + planeY * math.cos(-ROT_SPEED)
     )
 
-  # Background render
-  screen.fill(CEILING_COLOR, (0, 0, WIDTH, HEIGHT // 2))
-  screen.fill(FLOOR_COLOR, (0, HEIGHT // 2, WIDTH, HEIGHT // 2))
+  screen.fill(CEILING_COLOR, (0, 0, RENDER_WIDTH, RENDER_HEIGHT // 2))
+  screen.fill(
+      FLOOR_COLOR,
+      (0, RENDER_HEIGHT // 2, RENDER_WIDTH, RENDER_HEIGHT // 2),
+  )
 
   current_texture = TEXTURES[active_texture_id]
   tex_res = 256
 
-  # Raycasting Loop
-  for x in range(WIDTH):
-    cameraX = 2 * x / WIDTH - 1
+  ray_cache = []
+
+  for x in range(RENDER_WIDTH):
+    cameraX = 2 * x / RENDER_WIDTH - 1
     rayDirX = dirX + planeX * cameraX
     rayDirY = dirY + planeY * cameraX
 
@@ -227,52 +246,77 @@ while running:
 
     if side == 0:
       perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX
-    else:
-      perpWallDist = (mapY - posY + (1 - stepY) / 2) / rayDirY
-
-    lineHeight = int(HEIGHT / perpWallDist) if perpWallDist > 0 else HEIGHT
-
-    drawStart = -lineHeight // 2 + HEIGHT // 2
-    drawStart = max(0, drawStart)
-    drawEnd = lineHeight // 2 + HEIGHT // 2
-    drawEnd = min(HEIGHT - 1, drawEnd)
-
-    # Texture coordinate mapping
-    if side == 0:
       wallX = posY + perpWallDist * rayDirY
     else:
+      perpWallDist = (mapY - posY + (1 - stepY) / 2) / rayDirY
       wallX = posX + perpWallDist * rayDirX
+
     wallX -= math.floor(wallX)
 
+    ray_cache.append({
+        "perpWallDist": perpWallDist,
+        "side": side,
+        "wallX": wallX,
+        "rayDirX": rayDirX,
+        "rayDirY": rayDirY,
+    })
+
+  # --- LIGHTNING-FAST RENDER PASS (Zero per-strip surface overhead) ---
+  for x in range(RENDER_WIDTH):
+    data = ray_cache[x]
+    perpWallDist = data["perpWallDist"]
+    side = data["side"]
+    wallX = data["wallX"]
+    rayDirX = data["rayDirX"]
+    rayDirY = data["rayDirY"]
+
+    # 9-tap sliding window to eliminate corner seam artifacts
+    if 4 < x < RENDER_WIDTH - 5:
+      center_side = side
+      neighbor_sides = [ray_cache[x + i]["side"] for i in range(-4, 5)]
+      if any(s != center_side for s in neighbor_sides):
+        neighbors = [ray_cache[x + i]["wallX"] for i in range(-4, 5)]
+        wallX = sum(neighbors) / len(neighbors)
+
+    lineHeight = int(RENDER_HEIGHT / perpWallDist) if perpWallDist > 0 else RENDER_HEIGHT
+    drawStart = -lineHeight // 2 + RENDER_HEIGHT // 2
+    drawStart = max(0, drawStart)
+    drawEnd = lineHeight // 2 + RENDER_HEIGHT // 2
+    drawEnd = min(RENDER_HEIGHT - 1, drawEnd)
+
     texX = int(wallX * tex_res)
-    if side == 0 and rayDirX > 0:
+    if side == 0 and rayDirX < 0:
       texX = tex_res - texX - 1
-    if side == 1 and rayDirY < 0:
+    if side == 1 and rayDirY > 0:
       texX = tex_res - texX - 1
 
     try:
       wall_strip = current_texture.subsurface((texX, 0, 1, tex_res))
       scaled_strip = pygame.transform.scale(wall_strip, (1, lineHeight))
 
-      # Shading on side walls for depth
+      # Clean, lightweight side shading (no dynamic surface allocations per ray)
       if side == 1:
         darken = pygame.Surface((1, lineHeight))
-        darken.fill((60, 60, 60))
+        darken.fill((30, 30, 30))
         scaled_strip.blit(darken, (0, 0), special_flags=pygame.BLEND_SUB)
 
       screen.blit(scaled_strip, (x, drawStart))
     except ValueError:
-      fallback_color = (110, 110, 120) if side == 0 else (80, 80, 90)
+      fallback_color = (130, 130, 140) if side == 0 else (100, 100, 110)
       pygame.draw.line(screen, fallback_color, (x, drawStart), (x, drawEnd))
 
-  # On-screen HUD instructions
+  scaled_window_surface = pygame.transform.smoothscale(
+      screen, (WINDOW_WIDTH, WINDOW_HEIGHT)
+  )
+  window.blit(scaled_window_surface, (0, 0))
+
   font = pygame.font.SysFont(None, 22)
   txt = font.render(
       f"Level: {level_data['name']} | Switch: [1] Bricks, [2] Cavern",
       True,
-      (220, 220, 220),
+      (240, 240, 240),
   )
-  screen.blit(txt, (10, 10))
+  window.blit(txt, (10, 10))
 
   pygame.display.flip()
   clock.tick(60)
