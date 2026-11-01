@@ -121,26 +121,32 @@ planeX, planeY = 0.0, 0.4
 
 MOVE_SPEED = 0.04
 ROT_SPEED = 0.035
-PLAYER_RADIUS = 0.35
+PLAYER_RADIUS = 0.22
 
 CEILING_COLOR = (40, 40, 50)
 FLOOR_COLOR = (60, 50, 40)
 
 
 def load_level(level_id):
-  global current_level_id, level_data, WORLD_MAP, active_texture_id, posX, posY, dirX, dirY
+  global current_level_id, level_data, WORLD_MAP
+  global active_texture_id, posX, posY
+  global dirX, dirY, planeX, planeY
+
   current_level_id = level_id
   level_data = LEVELS[level_id]
   WORLD_MAP = level_data["map"]
   active_texture_id = level_data["texture_id"]
+
   posX, posY = 1.5, 1.5
+
   dirX, dirY = -1.0, 0.0
+  planeX, planeY = 0.0, 0.4
 
 
 def can_move_to(x, y):
-  for cx in [x - PLAYER_RADIUS, x + PLAYER_RADIUS]:
-    for cy in [y - PLAYER_RADIUS, y + PLAYER_RADIUS]:
-      if WORLD_MAP[int(cx)][int(cy)] > 0:
+  for cx in (x - PLAYER_RADIUS, x + PLAYER_RADIUS):
+    for cy in (y - PLAYER_RADIUS, y + PLAYER_RADIUS):
+      if is_wall(math.floor(cx), math.floor(cy)):
         return False
   return True
 
@@ -241,7 +247,19 @@ while running:
         sideDistY += deltaDistY
         mapY += stepY
         side = 1
-      if WORLD_MAP[mapX][mapY] > 0:
+
+
+      def is_wall(x, y):
+        map_height = len(WORLD_MAP)
+        map_width = len(WORLD_MAP[0])
+
+        # Treat outside the map as solid.
+        if x < 0 or y < 0 or x >= map_width or y >= map_height:
+          return True
+
+        return WORLD_MAP[y][x] > 0
+
+      if is_wall(mapX, mapY):
         hit = 1
 
     if side == 0:
@@ -270,19 +288,11 @@ while running:
     rayDirX = data["rayDirX"]
     rayDirY = data["rayDirY"]
 
-    # 9-tap sliding window to eliminate corner seam artifacts
-    if 4 < x < RENDER_WIDTH - 5:
-      center_side = side
-      neighbor_sides = [ray_cache[x + i]["side"] for i in range(-4, 5)]
-      if any(s != center_side for s in neighbor_sides):
-        neighbors = [ray_cache[x + i]["wallX"] for i in range(-4, 5)]
-        wallX = sum(neighbors) / len(neighbors)
+    lineHeight = max(1, int(RENDER_HEIGHT / perpWallDist)) if perpWallDist > 0 else RENDER_HEIGHT
 
-    lineHeight = int(RENDER_HEIGHT / perpWallDist) if perpWallDist > 0 else RENDER_HEIGHT
-    drawStart = -lineHeight // 2 + RENDER_HEIGHT // 2
-    drawStart = max(0, drawStart)
-    drawEnd = lineHeight // 2 + RENDER_HEIGHT // 2
-    drawEnd = min(RENDER_HEIGHT - 1, drawEnd)
+    # Calculate the ORIGINAL wall position without clipping.
+    drawStart = (RENDER_HEIGHT - lineHeight) // 2
+    drawEnd = drawStart + lineHeight - 1
 
     texX = int(wallX * tex_res)
     if side == 0 and rayDirX < 0:
