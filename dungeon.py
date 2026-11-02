@@ -86,7 +86,7 @@ party_members = [
         "max_hp": 5,
         "mp": 10,
         "max_mp": 10,
-        "weapon": dagger_item,  # Equipped with Dagger
+        "weapon": dagger_item,
     },
     {
         "name": "Reece",
@@ -125,7 +125,7 @@ for hero in party_members:
 
 
 # ==========================================
-# PARTY UI RENDER (Bottom Bar)
+# PARTY UI RENDER (Bottom Bar with HP Bars)
 # ==========================================
 def draw_party_ui(surface):
   # Bottom background bar
@@ -136,7 +136,7 @@ def draw_party_ui(surface):
   # Layout spacing for avatars centered at the bottom
   start_x = 40
   spacing = 160
-  start_y = 432
+  start_y = 430
 
   for i, hero in enumerate(party_members):
     cx = start_x + i * spacing
@@ -148,8 +148,30 @@ def draw_party_ui(surface):
     name_txt = font_med.render(
         f"[{i+1}] {hero['name']}", True, (230, 230, 230)
     )
-    name_rect = name_txt.get_rect(center=(cx + 40, start_y + 80 + 12))
+    name_rect = name_txt.get_rect(center=(cx + 40, start_y + 80 + 8))
     surface.blit(name_txt, name_rect)
+
+    # Draw HP Bar below name
+    hp_bar_width = 70
+    hp_bar_height = 6
+    hp_bar_x = cx + 5
+    hp_bar_y = start_y + 80 + 20
+
+    # Background (empty bar)
+    bg_bar_rect = pygame.Rect(hp_bar_x, hp_bar_y, hp_bar_width, hp_bar_height)
+    pygame.draw.rect(surface, (60, 30, 30), bg_bar_rect)
+
+    # Fill bar proportional to current HP
+    hp_ratio = max(0.0, min(1.0, hero["hp"] / max(1, hero["max_hp"])))
+    fill_width = int(hp_bar_width * hp_ratio)
+    if fill_width > 0:
+      fill_bar_rect = pygame.Rect(
+          hp_bar_x, hp_bar_y, fill_width, hp_bar_height
+      )
+      pygame.draw.rect(surface, (50, 205, 50), fill_bar_rect)
+
+    # Outline
+    pygame.draw.rect(surface, (100, 100, 100), bg_bar_rect, 1)
 
 
 # ==========================================
