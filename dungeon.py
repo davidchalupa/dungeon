@@ -388,7 +388,7 @@ def draw_character_subscreen(surface, hero):
 
 
 # ==========================================
-# PROCEDURAL TEXTURES (256x256)
+# PROCEDURAL TEXTURES (256x256) - ISOLATED RNG
 # ==========================================
 def create_running_bond_brick_texture():
   tex_size = 256
@@ -396,7 +396,8 @@ def create_running_bond_brick_texture():
   surf.fill((80, 80, 90))
   brick_h = 32
   brick_w = 64
-  random.seed(42)
+  # Use an isolated local random generator so we don't mess up global gameplay randomness
+  tex_rng = random.Random(42)
 
   for y in range(0, tex_size, brick_h):
     row_idx = y // brick_h
@@ -408,7 +409,7 @@ def create_running_bond_brick_texture():
       by = y + 3
       bw = brick_w - 4
       bh = brick_h - 4
-      c_var = random.randint(-10, 10)
+      c_var = tex_rng.randint(-10, 10)
       brick_color = (
           max(100, min(190, 135 + c_var)),
           max(100, min(190, 135 + c_var)),
@@ -424,14 +425,14 @@ def create_running_bond_brick_texture():
 def create_organic_texture():
   tex_size = 256
   surf = pygame.Surface((tex_size, tex_size))
-  random.seed(123)
+  tex_rng = random.Random(123)
 
   for y in range(tex_size):
     for x in range(tex_size):
       noise = (
           140
           + int(20 * math.sin(x * 0.1) * math.cos(y * 0.1))
-          + random.randint(-15, 15)
+          + tex_rng.randint(-15, 15)
       )
       color_val = max(80, min(230, noise))
       surf.set_at((x, y), (color_val, color_val, color_val + 10))
