@@ -6,16 +6,79 @@ import pygame
 # Initialize Pygame
 pygame.init()
 
-# Window Display Resolution
-WINDOW_WIDTH, WINDOW_HEIGHT = 640, 480
+# Window Display Resolution (Adjusted height to fit the bottom picture bar)
+WINDOW_WIDTH, WINDOW_HEIGHT = 640, 540
 window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 pygame.display.set_caption("Dungeon Engine - High Speed & Bright")
 
-# High-Resolution Rendering Surface (Double horizontal ray density for anti-aliasing)
-RENDER_WIDTH, RENDER_HEIGHT = 1280, 480
+# High-Resolution Rendering Surface for 3D View (Top portion)
+RENDER_WIDTH, RENDER_HEIGHT = 1280, 420
 screen = pygame.Surface((RENDER_WIDTH, RENDER_HEIGHT))
 
 clock = pygame.time.Clock()
+
+# Load Font for UI
+font_med = pygame.font.SysFont(None, 20)
+
+# ==========================================
+# PARTY DATA & ASSETS LOADING
+# ==========================================
+party_members = [
+    {
+        "name": "Thorne",
+        "class": "Warrior",
+        "path": "images/male-warrior.jpg",
+    },
+    {
+        "name": "Lyra",
+        "class": "Mage",
+        "path": "images/female-mage.jpg",
+    },
+    {
+        "name": "Vesper",
+        "class": "Ranger",
+        "path": "images/female-ranger.jpg",
+    },
+]
+
+# Load and scale each character's avatar
+for hero in party_members:
+  try:
+    surf = pygame.image.load(hero["path"]).convert_alpha()
+    hero["avatar"] = pygame.transform.scale(surf, (80, 80))
+  except Exception as e:
+    print(
+        f"Warning: Could not load '{hero['path']}' ({e}). Using placeholder."
+    )
+    fallback = pygame.Surface((80, 80))
+    fallback.fill((100, 100, 120))
+    hero["avatar"] = fallback
+
+
+# ==========================================
+# PARTY UI RENDER (Pictures & Names Only)
+# ==========================================
+def draw_party_ui(surface):
+  # Bottom background bar
+  bar_rect = pygame.Rect(0, 420, WINDOW_WIDTH, 120)
+  pygame.draw.rect(surface, (20, 20, 25), bar_rect)
+  pygame.draw.line(surface, (50, 50, 60), (0, 420), (WINDOW_WIDTH, 420), 2)
+
+  # Layout spacing for 3 avatars centered at the bottom
+  start_x = 110
+  spacing = 160
+  start_y = 432
+
+  for i, hero in enumerate(party_members):
+    cx = start_x + i * spacing
+
+    # Draw unique picture for this hero
+    surface.blit(hero["avatar"], (cx, start_y))
+
+    # Draw name below picture
+    name_txt = font_med.render(hero["name"], True, (230, 230, 230))
+    name_rect = name_txt.get_rect(center=(cx + 40, start_y + 80 + 12))
+    surface.blit(name_txt, name_rect)
 
 
 # ==========================================
@@ -138,9 +201,16 @@ def load_level(level_id):
   active_texture_id = level_data["texture_id"]
 
   posX, posY = 1.5, 1.5
-
   dirX, dirY = -1.0, 0.0
   planeX, planeY = 0.0, 0.4
+
+
+def is_wall(x, y):
+  map_height = len(WORLD_MAP)
+  map_width = len(WORLD_MAP[0])
+  if x < 0 or y < 0 or x >= map_width or y >= map_height:
+    return True
+  return WORLD_MAP[y][x] > 0
 
 
 def can_move_to(x, y):
@@ -151,7 +221,9 @@ def can_move_to(x, y):
   return True
 
 
-# Main Game Loop
+# ==========================================
+# MAIN GAME LOOP
+# ==========================================
 running = True
 while running:
   for event in pygame.event.get():
@@ -199,6 +271,7 @@ while running:
         oldPlaneX * math.sin(-ROT_SPEED) + planeY * math.cos(-ROT_SPEED)
     )
 
+  # Render Ceiling and Floor on the 3D surface
   screen.fill(CEILING_COLOR, (0, 0, RENDER_WIDTH, RENDER_HEIGHT // 2))
   screen.fill(
       FLOOR_COLOR,
@@ -207,9 +280,9 @@ while running:
 
   current_texture = TEXTURES[active_texture_id]
   tex_res = 256
-
   ray_cache = []
 
+  # Raycasting Pass
   for x in range(RENDER_WIDTH):
     cameraX = 2 * x / RENDER_WIDTH - 1
     rayDirX = dirX + planeX * cameraX
@@ -248,17 +321,6 @@ while running:
         mapY += stepY
         side = 1
 
-
-      def is_wall(x, y):
-        map_height = len(WORLD_MAP)
-        map_width = len(WORLD_MAP[0])
-
-        # Treat outside the map as solid.
-        if x < 0 or y < 0 or x >= map_width or y >= map_height:
-          return True
-
-        return WORLD_MAP[y][x] > 0
-
       if is_wall(mapX, mapY):
         hit = 1
 
@@ -279,7 +341,7 @@ while running:
         "rayDirY": rayDirY,
     })
 
-  # --- LIGHTNING-FAST RENDER PASS (Zero per-strip surface overhead) ---
+  # Wall Rendering Pass
   for x in range(RENDER_WIDTH):
     data = ray_cache[x]
     perpWallDist = data["perpWallDist"]
@@ -288,9 +350,11 @@ while running:
     rayDirX = data["rayDirX"]
     rayDirY = data["rayDirY"]
 
-    lineHeight = max(1, int(RENDER_HEIGHT / perpWallDist)) if perpWallDist > 0 else RENDER_HEIGHT
-
-    # Calculate the ORIGINAL wall position without clipping.
+    lineHeight = (
+        max(1, int(RENDER_HEIGHT / perpWallDist))
+        if perpWallDist > 0
+        else RENDER_HEIGHT
+    )
     drawStart = (RENDER_HEIGHT - lineHeight) // 2
     drawEnd = drawStart + lineHeight - 1
 
@@ -304,7 +368,6 @@ while running:
       wall_strip = current_texture.subsurface((texX, 0, 1, tex_res))
       scaled_strip = pygame.transform.scale(wall_strip, (1, lineHeight))
 
-      # Clean, lightweight side shading (no dynamic surface allocations per ray)
       if side == 1:
         darken = pygame.Surface((1, lineHeight))
         darken.fill((30, 30, 30))
@@ -315,18 +378,22 @@ while running:
       fallback_color = (130, 130, 140) if side == 0 else (100, 100, 110)
       pygame.draw.line(screen, fallback_color, (x, drawStart), (x, drawEnd))
 
+  # Blit scaled 3D dungeon view onto the top of the main window
   scaled_window_surface = pygame.transform.smoothscale(
-      screen, (WINDOW_WIDTH, WINDOW_HEIGHT)
+      screen, (WINDOW_WIDTH, 420)
   )
   window.blit(scaled_window_surface, (0, 0))
 
-  font = pygame.font.SysFont(None, 22)
-  txt = font.render(
+  # Draw Level Title Overlay
+  txt = font_med.render(
       f"Level: {level_data['name']} | Switch: [1] Bricks, [2] Cavern",
       True,
       (240, 240, 240),
   )
   window.blit(txt, (10, 10))
+
+  # Draw Party UI at the bottom
+  draw_party_ui(window)
 
   pygame.display.flip()
   clock.tick(60)
