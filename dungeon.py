@@ -3,6 +3,10 @@ import random
 import sys
 import pygame
 
+from assets.levels import LEVELS
+from assets.party_members import party_members
+from engine.textures import TEXTURES
+
 # Initialize Pygame
 pygame.init()
 
@@ -11,8 +15,8 @@ WINDOW_WIDTH, WINDOW_HEIGHT = 840, 720
 window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 pygame.display.set_caption("Dungeon Engine - High Speed & Bright")
 
-# High-Resolution Rendering Surface for 3D View (Top portion)
-RENDER_WIDTH, RENDER_HEIGHT = 1664, 546
+# Optimized 3D Rendering Surface (Matched to window width)
+RENDER_WIDTH, RENDER_HEIGHT = 840, 546
 screen = pygame.Surface((RENDER_WIDTH, RENDER_HEIGHT))
 
 clock = pygame.time.Clock()
@@ -21,161 +25,20 @@ clock = pygame.time.Clock()
 font_med = pygame.font.SysFont(None, 20)
 font_large = pygame.font.SysFont(None, 24)
 
-# ==========================================
-# ITEM DEFINITIONS & ASSETS
-# ==========================================
-longsword_item = {
-    "name": "Longsword",
-    "min_atk": 4,
-    "max_atk": 8,
-    "path": "images/longsword.png",
-}
-
-try:
-    sword_surf = pygame.image.load(longsword_item["path"]).convert_alpha()
-    longsword_item["icon"] = pygame.transform.scale(sword_surf, (34, 34))
-except Exception as e:
-    fallback = pygame.Surface((34, 34))
-    fallback.fill((140, 140, 160))
-    longsword_item["icon"] = fallback
-
-dagger_item = {
-    "name": "Dagger",
-    "min_atk": 2,
-    "max_atk": 4,
-    "path": "images/dagger.png",
-}
-
-try:
-    dagger_surf = pygame.image.load(dagger_item["path"]).convert_alpha()
-    dagger_item["icon"] = pygame.transform.scale(dagger_surf, (34, 34))
-except Exception as e:
-    fallback = pygame.Surface((34, 34))
-    fallback.fill((160, 140, 140))
-    dagger_item["icon"] = fallback
-
-# ==========================================
-# PARTY DATA & ASSETS LOADING
-# ==========================================
-party_members = [
-    {
-        "name": "Thorne",
-        "class": "Warrior",
-        "path": "images/male-warrior.jpg",
-        "hp": 10,
-        "max_hp": 10,
-        "mp": 0,
-        "max_mp": 0,
-        "weapon": longsword_item,
-    },
-    {
-        "name": "Lyra",
-        "class": "Mage",
-        "path": "images/female-mage.jpg",
-        "hp": 5,
-        "max_hp": 5,
-        "mp": 10,
-        "max_mp": 10,
-        "weapon": dagger_item,
-    },
-    {
-        "name": "Reece",
-        "class": "Warrior",
-        "path": "images/male-warrior-2.jpg",
-        "hp": 10,
-        "max_hp": 10,
-        "mp": 0,
-        "max_mp": 0,
-        "weapon": longsword_item,
-    },
-    {
-        "name": "Vesper",
-        "class": "Ranger",
-        "path": "images/female-ranger.jpg",
-        "hp": 8,
-        "max_hp": 8,
-        "mp": 3,
-        "max_mp": 3,
-        "weapon": longsword_item,
-    },
-]
-
 HERO_PORTRAIT_SIZE = 96
 
-for hero in party_members:
-    try:
-        surf = pygame.image.load(hero["path"]).convert_alpha()
-        hero["avatar"] = pygame.transform.scale(surf, (HERO_PORTRAIT_SIZE, HERO_PORTRAIT_SIZE))
-    except Exception as e:
-        fallback = pygame.Surface((HERO_PORTRAIT_SIZE, HERO_PORTRAIT_SIZE))
-        fallback.fill((100, 100, 120))
-        hero["avatar"] = fallback
+# Wrap asset loading in a function to prevent parser freeze on open
+def initialize_hero_avatars():
+    for hero in party_members:
+        try:
+            surf = pygame.image.load(hero["path"]).convert_alpha()
+            hero["avatar"] = pygame.transform.scale(surf, (HERO_PORTRAIT_SIZE, HERO_PORTRAIT_SIZE))
+        except Exception as e:
+            fallback = pygame.Surface((HERO_PORTRAIT_SIZE, HERO_PORTRAIT_SIZE))
+            fallback.fill((100, 100, 120))
+            hero["avatar"] = fallback
 
-# ==========================================
-# LEVEL & MAP CONFIGURATIONS
-# ==========================================
-LEVELS = {
-    1: {
-        "name": "Level 1: The Stone Keep",
-        "texture_id": 1,
-        "map": [
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1],
-            [1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1],
-            [1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1],
-            [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        ],
-        "opponents": [
-            {
-                "name": "Cave Goblin",
-                "x": 3.0,
-                "y": 1.5,
-                "hp": 25,
-                "max_hp": 25,
-                "min_atk": 2,
-                "max_atk": 5,
-                "alive": True,
-            },
-            {
-                "name": "Cave Goblin",
-                "x": 9.5,
-                "y": 1.5,
-                "hp": 25,
-                "max_hp": 25,
-                "min_atk": 2,
-                "max_atk": 5,
-                "alive": True,
-            },
-        ],
-    },
-    2: {
-        "name": "Level 2: The Deep Cavern",
-        "texture_id": 2,
-        "map": [
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
-            [1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-            [1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
-            [1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        ],
-        "opponents": [
-            {
-                "name": "Cave Goblin",
-                "x": 6.5,
-                "y": 3.5,
-                "hp": 25,
-                "max_hp": 25,
-                "min_atk": 2,
-                "max_atk": 5,
-                "alive": True,
-            }
-        ],
-    },
-}
+initialize_hero_avatars()
 
 current_level_id = 1
 level_data = LEVELS[current_level_id]
@@ -385,62 +248,6 @@ def draw_character_subscreen(surface, hero):
     surface.blit(footer_txt, footer_txt.get_rect(center=(bg_rect.centerx, 390)))
 
 
-# ==========================================
-# PROCEDURAL TEXTURES & CACHING
-# ==========================================
-def create_running_bond_brick_texture():
-    tex_size = 256
-    surf = pygame.Surface((tex_size, tex_size))
-    surf.fill((80, 80, 90))
-    brick_h = 32
-    brick_w = 64
-    tex_rng = random.Random(42)
-
-    for y in range(0, tex_size, brick_h):
-        row_idx = y // brick_h
-        offset = (row_idx % 2) * (brick_w // 2)
-        pygame.draw.line(surf, (45, 45, 55), (0, y), (tex_size, y), 3)
-
-        for x in range(-brick_w + offset, tex_size + brick_w, brick_w):
-            bx = x + 2
-            by = y + 3
-            bw = brick_w - 4
-            bh = brick_h - 4
-            c_var = tex_rng.randint(-10, 10)
-            brick_color = (
-                max(100, min(190, 135 + c_var)),
-                max(100, min(190, 135 + c_var)),
-                max(110, min(200, 145 + c_var)),
-            )
-            pygame.draw.rect(surf, brick_color, (bx, by, bw, bh))
-            pygame.draw.line(
-                surf, (45, 45, 55), (x + brick_w, y), (x + brick_w, y + brick_h), 3
-            )
-    return surf
-
-
-def create_organic_texture():
-    tex_size = 256
-    surf = pygame.Surface((tex_size, tex_size))
-    tex_rng = random.Random(123)
-
-    for y in range(tex_size):
-        for x in range(tex_size):
-            noise = (
-                    140
-                    + int(20 * math.sin(x * 0.1) * math.cos(y * 0.1))
-                    + tex_rng.randint(-15, 15)
-            )
-            color_val = max(80, min(230, noise))
-            surf.set_at((x, y), (color_val, color_val, color_val + 10))
-    return surf
-
-
-TEXTURES = {
-    1: create_running_bond_brick_texture(),
-    2: create_organic_texture(),
-}
-
 # Pre-cache texture vertical strips for performance
 TEXTURE_STRIPS = {}
 for tid, tex in TEXTURES.items():
@@ -606,29 +413,46 @@ while running:
             oldPlaneX = planeX
             planeX = planeX * math.cos(-ROT_SPEED) - planeY * math.sin(-ROT_SPEED)
             planeY = (
-                    oldPlaneX * math.sin(-ROT_SPEED) + planeY * math.cos(-ROT_SPEED)
+                oldPlaneX * math.sin(-ROT_SPEED) + planeY * math.cos(-ROT_SPEED)
             )
 
-        for opp in opponents:
-            if opp["alive"]:
-                dist_to_enemy = math.hypot(posX - opp["x"], posY - opp["y"])
-                if dist_to_enemy < 2.5:
-                    in_combat = True
-                    current_opponent = opp
-                    start_combat_round()
-                    combat_message = (
-                        f"Encountered a {opp['name']}! Randomized combat started."
-                    )
+        def check_enemy_encounters(posX, posY, dirX, dirY, planeX, planeY, opponents, in_combat):
+            """
+            Checks for enemy proximity, triggers combat, and aligns player view.
+            Wrapped in a function to isolate PyCharm's type-inference engine.
+            """
+            if in_combat:
+                return in_combat, None, dirX, dirY, planeX, planeY, "An enemy blocks your path!"
 
-                    toEnemyX = opp["x"] - posX
-                    toEnemyY = opp["y"] - posY
-                    dist = math.hypot(toEnemyX, toEnemyY)
-                    if dist > 0:
-                        dirX = toEnemyX / dist
-                        dirY = toEnemyY / dist
-                        planeX = dirY * 0.4
-                        planeY = -dirX * 0.4
-                    break
+            current_opp = None
+            combat_msg = "An enemy blocks your path!"
+
+            for opp in opponents:
+                if opp["alive"]:
+                    dist_to_enemy = math.hypot(posX - opp["x"], posY - opp["y"])
+                    if dist_to_enemy < 2.5:
+                        in_combat = True
+                        current_opp = opp
+                        combat_msg = f"Encountered a {opp['name']}! Randomized combat started."
+
+                        toEnemyX = opp["x"] - posX
+                        toEnemyY = opp["y"] - posY
+                        dist = math.hypot(toEnemyX, toEnemyY)
+                        if dist > 0:
+                            dirX = toEnemyX / dist
+                            dirY = toEnemyY / dist
+                            planeX = dirY * 0.4
+                            planeY = -dirX * 0.4
+                        break
+
+            return in_combat, current_opp, dirX, dirY, planeX, planeY, combat_msg
+
+        # Call the isolated function (keeps PyCharm's parser happy!)
+        in_combat, current_opponent, dirX, dirY, planeX, planeY, combat_message = check_enemy_encounters(
+            posX, posY, dirX, dirY, planeX, planeY, opponents, in_combat
+        )
+        if current_opponent:
+            start_combat_round()
 
     # Render Ceiling and Floor on the 3D surface
     screen.fill(CEILING_COLOR, (0, 0, RENDER_WIDTH, RENDER_HEIGHT // 2))

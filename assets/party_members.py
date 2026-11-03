@@ -1,0 +1,48 @@
+from assets.items import dagger_item, longsword_item
+
+
+# ==========================================
+# PARTY DATA & ASSETS LOADING
+# ==========================================
+party_members = [
+    {
+        "name": "Thorne",
+        "class": "Warrior",
+        "path": "images/male-warrior.jpg",
+        "hp": 10,
+        "max_hp": 10,
+        "mp": 0,
+        "max_mp": 0,
+        "weapon": longsword_item,
+    },
+    {
+        "name": "Lyra",
+        "class": "Mage",
+        "path": "images/female-mage.jpg",
+        "hp": 5,
+        "max_hp": 5,
+        "mp": 10,
+        "max_mp": 10,
+        "weapon": dagger_item,
+    },
+    {
+        "name": "Reece",
+        "class": "Warrior",
+        "path": "images/male-warrior-2.jpg",
+        "hp": 10,
+        "max_hp": 10,
+        "mp": 0,
+        "max_mp": 0,
+        "weapon": longsword_item,
+    },
+    {
+        "name": "Vesper",
+        "class": "Ranger",
+        "path": "images/female-ranger.jpg",
+        "hp": 8,
+        "max_hp": 8,
+        "mp": 3,
+        "max_mp": 3,
+        "weapon": longsword_item,
+    },
+]
