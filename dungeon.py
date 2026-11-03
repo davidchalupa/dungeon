@@ -7,12 +7,12 @@ import pygame
 pygame.init()
 
 # Window Display Resolution (Adjusted height to fit the bottom picture bar)
-WINDOW_WIDTH, WINDOW_HEIGHT = 640, 540
+WINDOW_WIDTH, WINDOW_HEIGHT = 840, 720
 window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 pygame.display.set_caption("Dungeon Engine - High Speed & Bright")
 
 # High-Resolution Rendering Surface for 3D View (Top portion)
-RENDER_WIDTH, RENDER_HEIGHT = 1280, 420
+RENDER_WIDTH, RENDER_HEIGHT = 1664, 546
 screen = pygame.Surface((RENDER_WIDTH, RENDER_HEIGHT))
 
 clock = pygame.time.Clock()
@@ -100,12 +100,14 @@ party_members = [
     },
 ]
 
+HERO_PORTRAIT_SIZE = 96
+
 for hero in party_members:
   try:
     surf = pygame.image.load(hero["path"]).convert_alpha()
-    hero["avatar"] = pygame.transform.scale(surf, (80, 80))
+    hero["avatar"] = pygame.transform.scale(surf, (HERO_PORTRAIT_SIZE, HERO_PORTRAIT_SIZE))
   except Exception as e:
-    fallback = pygame.Surface((80, 80))
+    fallback = pygame.Surface((HERO_PORTRAIT_SIZE, HERO_PORTRAIT_SIZE))
     fallback.fill((100, 100, 120))
     hero["avatar"] = fallback
 
@@ -250,13 +252,14 @@ def can_move_to(x, y):
 # PARTY UI RENDER (Bottom Bar with HP Bars & Turn Frame)
 # ==========================================
 def draw_party_ui(surface, current_actor=None):
-  bar_rect = pygame.Rect(0, 420, WINDOW_WIDTH, 120)
+  bar_rect = pygame.Rect(0, 580, WINDOW_WIDTH, 140)
   pygame.draw.rect(surface, (20, 20, 25), bar_rect)
-  pygame.draw.line(surface, (50, 50, 60), (0, 420), (WINDOW_WIDTH, 420), 2)
+  pygame.draw.line(surface, (50, 50, 60), (0, 580), (WINDOW_WIDTH, 580), 2)
 
-  start_x = 40
+  total_width = WINDOW_WIDTH
   spacing = 160
-  start_y = 430
+  start_x = (WINDOW_WIDTH - (len(party_members) * spacing)) / 2
+  start_y = 590
 
   for i, hero in enumerate(party_members):
     cx = start_x + i * spacing
@@ -265,7 +268,7 @@ def draw_party_ui(surface, current_actor=None):
     # Highlight frame if it's currently this character's turn
     if current_actor == hero:
       pygame.draw.rect(
-          surface, (255, 215, 0), (cx - 3, start_y - 3, 86, 86), 3
+          surface, (255, 215, 0), (cx - 3, start_y - 3, HERO_PORTRAIT_SIZE + 6, HERO_PORTRAIT_SIZE + 6), 3
       )
 
     # Name text
@@ -274,14 +277,14 @@ def draw_party_ui(surface, current_actor=None):
         True,
         (230, 230, 230) if hero["hp"] > 0 else (120, 120, 120),
     )
-    name_rect = name_txt.get_rect(center=(cx + 40, start_y + 80 + 8))
+    name_rect = name_txt.get_rect(center=(cx + HERO_PORTRAIT_SIZE / 2, start_y + HERO_PORTRAIT_SIZE + 12))
     surface.blit(name_txt, name_rect)
 
     # HP Bar
-    hp_bar_width = 70
+    hp_bar_width = HERO_PORTRAIT_SIZE - 10
     hp_bar_height = 6
     hp_bar_x = cx + 5
-    hp_bar_y = start_y + 80 + 20
+    hp_bar_y = start_y + HERO_PORTRAIT_SIZE + 24
 
     bg_bar_rect = pygame.Rect(hp_bar_x, hp_bar_y, hp_bar_width, hp_bar_height)
     pygame.draw.rect(surface, (60, 30, 30), bg_bar_rect)
@@ -302,7 +305,7 @@ def draw_party_ui(surface, current_actor=None):
 # CHARACTER SUBSCREEN RENDER
 # ==========================================
 def draw_character_subscreen(surface, hero):
-  bg_rect = pygame.Rect(0, 0, WINDOW_WIDTH, 420)
+  bg_rect = pygame.Rect(0, 0, WINDOW_WIDTH, 580)
   pygame.draw.rect(surface, (22, 22, 28), bg_rect)
   pygame.draw.rect(surface, (160, 140, 90), bg_rect, 3)
 
@@ -324,7 +327,7 @@ def draw_character_subscreen(surface, hero):
   avatar_y = bg_rect.y + 60
   surface.blit(hero["avatar"], (avatar_x, avatar_y))
 
-  stats_x = avatar_x + 95
+  stats_x = avatar_x + 110
   stats_y = avatar_y + 5
   name_txt = font_large.render(hero["name"], True, (255, 255, 255))
   class_txt = font_med.render(f"Class: {hero['class']}", True, (180, 180, 190))
@@ -768,7 +771,7 @@ while running:
 
   # Blit scaled 3D dungeon view onto the top of the main window
   scaled_window_surface = pygame.transform.smoothscale(
-      screen, (WINDOW_WIDTH, 420)
+      screen, (WINDOW_WIDTH, WINDOW_HEIGHT)
   )
   window.blit(scaled_window_surface, (0, 0))
 
