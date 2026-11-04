@@ -33,3 +33,16 @@ except Exception as e:
     fallback = pygame.Surface((34, 34))
     fallback.fill((160, 140, 140))
     dagger_item["icon"] = fallback
+
+
+def initialize_item_assets():
+    """Loads item icons after Pygame display mode has been initialized."""
+    items = [longsword_item, dagger_item]
+    for item in items:
+        try:
+            surf = pygame.image.load(item["path"]).convert_alpha()
+            item["icon"] = pygame.transform.scale(surf, (34, 34))
+        except Exception as e:
+            fallback = pygame.Surface((34, 34))
+            fallback.fill((140, 140, 160))
+            item["icon"] = fallback

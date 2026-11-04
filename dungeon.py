@@ -3,6 +3,7 @@ import random
 import sys
 import pygame
 
+from assets.items import initialize_item_assets
 from assets.levels import LEVELS
 from assets.party_members import party_members
 from engine.textures import TEXTURES
@@ -39,6 +40,7 @@ def initialize_hero_avatars():
             hero["avatar"] = fallback
 
 initialize_hero_avatars()
+initialize_item_assets()
 
 current_level_id = 1
 level_data = LEVELS[current_level_id]
