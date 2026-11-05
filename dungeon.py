@@ -270,6 +270,7 @@ def get_cached_procedural_goblin(width, height, body_color, breath):
     goblin_surf = pygame.Surface((w, h), pygame.SRCALPHA)
     gw, gh = w, h
 
+    # Draw Body & Head
     pygame.draw.circle(
         goblin_surf, body_color, (gw // 2, gh // 3 + breath), gw // 4
     )
@@ -278,11 +279,17 @@ def get_cached_procedural_goblin(width, height, body_color, breath):
         (40, 100, 50) if body_color != (180, 50, 50) else (140, 40, 40),
         (gw // 4, gh // 3 + breath, gw // 2, gh // 2),
     )
+
+    # Smaller Proportional Eye Scaling & Positioning (Less creepy)
+    eye_radius = max(1, gw // 20)
+    eye_offset_x = max(2, gw // 7)
+    eye_y = gh // 3 + breath - max(1, gh // 22)
+
     pygame.draw.circle(
-        goblin_surf, (255, 255, 0), (gw // 2 - 6, gh // 3 + breath - 2), 3
+        goblin_surf, (255, 255, 0), (gw // 2 - eye_offset_x, eye_y), eye_radius
     )
     pygame.draw.circle(
-        goblin_surf, (255, 255, 0), (gw // 2 + 6, gh // 3 + breath - 2), 3
+        goblin_surf, (255, 255, 0), (gw // 2 + eye_offset_x, eye_y), eye_radius
     )
 
     goblin_surface_cache[key] = goblin_surf
