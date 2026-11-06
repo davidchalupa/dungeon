@@ -257,7 +257,7 @@ TEXTURE_STRIPS = {}
 for tid, tex in TEXTURES.items():
     TEXTURE_STRIPS[tid] = [tex.subsurface((x, 0, 1, 256)) for x in range(256)]
 
-# Procedural Goblin Surface Cache with Size Quantization for Zero Lag
+# Procedural Goblin Surface Cache with Fine 2-Pixel Quantization (Crisp & Zero Lag)
 goblin_surface_cache = {}
 
 
@@ -265,16 +265,16 @@ def get_cached_procedural_goblin(width, height, body_color, breath):
     target_w = max(10, width)
     target_h = max(10, height)
 
-    # Quantize dimensions to nearest 16 pixels to eliminate per-frame scale thrashing
-    qw = max(16, (target_w + 8) // 16 * 16)
-    qh = max(16, (target_h + 8) // 16 * 16)
+    # Quantize dimensions to nearest 2 pixels for buttery-smooth scaling with zero visual steps
+    qw = max(10, (target_w + 1) // 2 * 2)
+    qh = max(10, (target_h + 1) // 2 * 2)
 
     key = (qw, qh, body_color, breath)
     if key in goblin_surface_cache:
         return goblin_surface_cache[key]
 
-    # Draw base at a fixed, lightweight size (128x128) for lightning-fast vector rendering
-    base_size = 128
+    # Draw base at a crisp master resolution (256x256) so details remain sharp
+    base_size = 256
     base_surf = pygame.Surface((base_size, base_size), pygame.SRCALPHA)
 
     # Draw Body & Head
@@ -287,10 +287,9 @@ def get_cached_procedural_goblin(width, height, body_color, breath):
         (base_size // 4, base_size // 3 + breath, base_size // 2, base_size // 2),
     )
 
-    # Smaller Proportional Eye Scaling & Positioning
-    eye_radius = max(1, base_size // 20)
-    eye_offset_x = max(2, base_size // 7)
-    eye_y = base_size // 3 + breath - max(1, base_size // 22)
+    eye_radius = max(2, base_size // 20)
+    eye_offset_x = max(4, base_size // 7)
+    eye_y = base_size // 3 + breath - max(2, base_size // 22)
 
     pygame.draw.circle(
         base_surf, (255, 255, 0), (base_size // 2 - eye_offset_x, eye_y), eye_radius
@@ -299,8 +298,8 @@ def get_cached_procedural_goblin(width, height, body_color, breath):
         base_surf, (255, 255, 0), (base_size // 2 + eye_offset_x, eye_y), eye_radius
     )
 
-    # Scale once to the quantized bucket size and cache it
-    scaled_surf = pygame.transform.smoothscale(base_surf, (qw, qh))
+    # Scale once to the 2-pixel quantized bucket size using fast C-scaling and cache it
+    scaled_surf = pygame.transform.scale(base_surf, (qw, qh))
     goblin_surface_cache[key] = scaled_surf
     return scaled_surf
 
@@ -645,7 +644,6 @@ while running:
                     continue
 
                 # Multi-Column Z-Buffer Check (Left edge, Center, Right edge)
-                # Prevents popping and wall bleeding while maintaining smooth corner peeking
                 visible = False
                 check_stripes = [drawStartX, screenX, drawEndX - 1]
                 for stripe in check_stripes:
@@ -665,7 +663,7 @@ while running:
                 )
                 breath = int(math.sin(pygame.time.get_ticks() * 0.01 + opp["x"]) * 4)
 
-                # Fetch cached surface using quantized dimensions (Zero Lag)
+                # Fetch cached surface using fine 2-pixel quantization (Crisp details + zero lag)
                 goblin_surf = get_cached_procedural_goblin(
                     drawEndX - drawStartX,
                     drawEndY - drawStartY,
