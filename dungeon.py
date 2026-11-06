@@ -405,10 +405,13 @@ while running:
                                 )
                                 turn_index += 1
                 else:
-                    if event.key == pygame.K_5:
+                    if event.key == pygame.K_F1:
                         load_level(1)
-                    elif event.key == pygame.K_6:
+                    elif event.key == pygame.K_F2:
                         load_level(2)
+                    elif event.key == pygame.K_F3:
+                        # Add next level ID here when ready, e.g., load_level(3)
+                        pass
                     elif event.key == pygame.K_ESCAPE:
                         running = False
 
