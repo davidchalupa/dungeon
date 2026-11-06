@@ -16,7 +16,7 @@ LEVELS = {
         ],
         "opponents": [
             {
-                "name": "Cave Goblin",
+                "name": "Goblin Ghost",
                 "x": 3.0,
                 "y": 1.5,
                 "hp": 25,
@@ -26,7 +26,7 @@ LEVELS = {
                 "alive": True,
             },
             {
-                "name": "Cave Goblin",
+                "name": "Goblin Ghost",
                 "x": 9.5,
                 "y": 1.5,
                 "hp": 25,
@@ -51,7 +51,7 @@ LEVELS = {
         ],
         "opponents": [
             {
-                "name": "Cave Goblin",
+                "name": "Goblin Ghost",
                 "x": 6.5,
                 "y": 3.5,
                 "hp": 25,
