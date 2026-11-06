@@ -28,6 +28,7 @@ font_large = pygame.font.SysFont(None, 24)
 
 HERO_PORTRAIT_SIZE = 96
 
+
 # Wrap asset loading in a function to prevent parser freeze on open
 def initialize_hero_avatars():
     for hero in party_members:
@@ -38,6 +39,7 @@ def initialize_hero_avatars():
             fallback = pygame.Surface((HERO_PORTRAIT_SIZE, HERO_PORTRAIT_SIZE))
             fallback.fill((100, 100, 120))
             hero["avatar"] = fallback
+
 
 initialize_hero_avatars()
 initialize_item_assets()
@@ -255,45 +257,52 @@ TEXTURE_STRIPS = {}
 for tid, tex in TEXTURES.items():
     TEXTURE_STRIPS[tid] = [tex.subsurface((x, 0, 1, 256)) for x in range(256)]
 
-# Procedural Goblin Surface Cache
+# Procedural Goblin Surface Cache with Size Quantization for Zero Lag
 goblin_surface_cache = {}
 
 
 def get_cached_procedural_goblin(width, height, body_color, breath):
-    w = max(10, (width // 4) * 4)
-    h = max(10, (height // 4) * 4)
+    target_w = max(10, width)
+    target_h = max(10, height)
 
-    key = (w, h, body_color, breath)
+    # Quantize dimensions to nearest 16 pixels to eliminate per-frame scale thrashing
+    qw = max(16, (target_w + 8) // 16 * 16)
+    qh = max(16, (target_h + 8) // 16 * 16)
+
+    key = (qw, qh, body_color, breath)
     if key in goblin_surface_cache:
         return goblin_surface_cache[key]
 
-    goblin_surf = pygame.Surface((w, h), pygame.SRCALPHA)
-    gw, gh = w, h
+    # Draw base at a fixed, lightweight size (128x128) for lightning-fast vector rendering
+    base_size = 128
+    base_surf = pygame.Surface((base_size, base_size), pygame.SRCALPHA)
 
     # Draw Body & Head
     pygame.draw.circle(
-        goblin_surf, body_color, (gw // 2, gh // 3 + breath), gw // 4
+        base_surf, body_color, (base_size // 2, base_size // 3 + breath), base_size // 4
     )
     pygame.draw.rect(
-        goblin_surf,
+        base_surf,
         (40, 100, 50) if body_color != (180, 50, 50) else (140, 40, 40),
-        (gw // 4, gh // 3 + breath, gw // 2, gh // 2),
+        (base_size // 4, base_size // 3 + breath, base_size // 2, base_size // 2),
     )
 
-    # Smaller Proportional Eye Scaling & Positioning (Less creepy)
-    eye_radius = max(1, gw // 20)
-    eye_offset_x = max(2, gw // 7)
-    eye_y = gh // 3 + breath - max(1, gh // 22)
+    # Smaller Proportional Eye Scaling & Positioning
+    eye_radius = max(1, base_size // 20)
+    eye_offset_x = max(2, base_size // 7)
+    eye_y = base_size // 3 + breath - max(1, base_size // 22)
 
     pygame.draw.circle(
-        goblin_surf, (255, 255, 0), (gw // 2 - eye_offset_x, eye_y), eye_radius
+        base_surf, (255, 255, 0), (base_size // 2 - eye_offset_x, eye_y), eye_radius
     )
     pygame.draw.circle(
-        goblin_surf, (255, 255, 0), (gw // 2 + eye_offset_x, eye_y), eye_radius
+        base_surf, (255, 255, 0), (base_size // 2 + eye_offset_x, eye_y), eye_radius
     )
 
-    goblin_surface_cache[key] = goblin_surf
-    return goblin_surf
+    # Scale once to the quantized bucket size and cache it
+    scaled_surf = pygame.transform.smoothscale(base_surf, (qw, qh))
+    goblin_surface_cache[key] = scaled_surf
+    return scaled_surf
 
 
 # ==========================================
@@ -375,7 +384,6 @@ while running:
             elif actor == current_opponent:
                 living_heroes = [h for h in party_members if h["hp"] > 0]
                 if living_heroes:
-                    # Verify line of sight before the monster attacks
                     if has_line_of_sight(posX, posY, current_opponent["x"], current_opponent["y"]):
                         target = random.choice(living_heroes)
                         dmg = random.randint(
@@ -426,18 +434,15 @@ while running:
             oldPlaneX = planeX
             planeX = planeX * math.cos(-ROT_SPEED) - planeY * math.sin(-ROT_SPEED)
             planeY = (
-                oldPlaneX * math.sin(-ROT_SPEED) + planeY * math.cos(-ROT_SPEED)
+                    oldPlaneX * math.sin(-ROT_SPEED) + planeY * math.cos(-ROT_SPEED)
             )
 
 
         def check_ray_clear(x1, y1, x2, y2):
-            """Helper to check a single ray segment for walls."""
             dist = math.hypot(x2 - x1, y2 - y1)
             if dist == 0:
                 return True
-
-            # Increased sample density to 20 samples per unit distance
-            steps = int(dist * 20)
+            steps = int(dist * 15)
             for i in range(steps + 1):
                 t = i / max(1, steps)
                 cx = x1 + (x2 - x1) * t
@@ -448,11 +453,6 @@ while running:
 
 
         def has_line_of_sight(x1, y1, x2, y2):
-            """
-            Robust line of sight check using multiple offset rays (center, left, right)
-            to prevent monsters and players from shooting or detecting through wall corners.
-            """
-            # 1. Check center ray
             if not check_ray_clear(x1, y1, x2, y2):
                 return False
 
@@ -462,39 +462,20 @@ while running:
             if dist == 0:
                 return True
 
-            # Calculate direction and perpendicular vector for body width offset
             dirX = dx / dist
             dirY = dy / dist
             perpX = -dirY
             perpY = dirX
-
-            # Offset distance matches PLAYER_RADIUS to account for character width
             offset = 0.22
 
-            # 2. Check left flank ray
-            left_clear = check_ray_clear(
-                x1 + perpX * offset, y1 + perpY * offset,
-                x2 + perpX * offset, y2 + perpY * offset
-            )
-            if not left_clear:
+            if not check_ray_clear(x1 + perpX * offset, y1 + perpY * offset, x2 + perpX * offset, y2 + perpY * offset):
                 return False
-
-            # 3. Check right flank ray
-            right_clear = check_ray_clear(
-                x1 - perpX * offset, y1 - perpY * offset,
-                x2 - perpX * offset, y2 - perpY * offset
-            )
-            if not right_clear:
+            if not check_ray_clear(x1 - perpX * offset, y1 - perpY * offset, x2 - perpX * offset, y2 - perpY * offset):
                 return False
-
             return True
 
 
         def check_enemy_encounters(posX, posY, dirX, dirY, planeX, planeY, opponents, in_combat):
-            """
-            Checks for enemy proximity, triggers combat, and aligns player view.
-            Wrapped in a function to isolate PyCharm's type-inference engine.
-            """
             if in_combat:
                 return in_combat, None, dirX, dirY, planeX, planeY, "An enemy blocks your path!"
 
@@ -504,7 +485,6 @@ while running:
             for opp in opponents:
                 if opp["alive"]:
                     dist_to_enemy = math.hypot(posX - opp["x"], posY - opp["y"])
-                    # Added has_line_of_sight check to prevent triggering through walls
                     if dist_to_enemy < 2.5 and has_line_of_sight(posX, posY, opp["x"], opp["y"]):
                         in_combat = True
                         current_opp = opp
@@ -522,7 +502,7 @@ while running:
 
             return in_combat, current_opp, dirX, dirY, planeX, planeY, combat_msg
 
-        # Call the isolated function (keeps PyCharm's parser happy!)
+
         in_combat, current_opponent, dirX, dirY, planeX, planeY, combat_message = check_enemy_encounters(
             posX, posY, dirX, dirY, planeX, planeY, opponents, in_combat
         )
@@ -639,7 +619,7 @@ while running:
     # Sort opponents by distance (Painter's Algorithm)
     sorted_opponents = sorted(opponents, key=lambda o: math.hypot(o["x"] - posX, o["y"] - posY), reverse=True)
 
-    # Render all alive opponents/sprites using cached procedural surfaces & Z-buffer check
+    # Render all alive opponents/sprites using cached procedural surfaces & multi-column Z-buffer check
     for opp in sorted_opponents:
         if opp["alive"]:
             spriteX = opp["x"] - posX
@@ -651,18 +631,31 @@ while running:
 
             if transformY > 0.2:
                 screenX = int((RENDER_WIDTH / 2) * (1.0 + transformX / transformY))
+
+                # Proportional sizing
                 spriteHeight = abs(int(RENDER_HEIGHT / transformY * 1.35))
                 spriteWidth = abs(int(RENDER_HEIGHT / transformY * 1.35))
+
                 drawStartY = max(0, (RENDER_HEIGHT - spriteHeight) // 2)
                 drawEndY = min(RENDER_HEIGHT, (RENDER_HEIGHT + spriteHeight) // 2)
                 drawStartX = max(0, screenX - spriteWidth // 2)
                 drawEndX = min(RENDER_WIDTH, screenX + spriteWidth // 2)
 
-                # Center column Z-buffer occlusion check
-                center_stripe = screenX
-                if 0 <= center_stripe < RENDER_WIDTH:
-                    if transformY > ray_cache[center_stripe]["perpWallDist"]:
-                        continue
+                if drawEndX <= drawStartX or drawEndY <= drawStartY:
+                    continue
+
+                # Multi-Column Z-Buffer Check (Left edge, Center, Right edge)
+                # Prevents popping and wall bleeding while maintaining smooth corner peeking
+                visible = False
+                check_stripes = [drawStartX, screenX, drawEndX - 1]
+                for stripe in check_stripes:
+                    if 0 <= stripe < RENDER_WIDTH:
+                        if transformY <= ray_cache[stripe]["perpWallDist"]:
+                            visible = True
+                            break
+
+                if not visible:
+                    continue
 
                 is_current = in_combat and current_opponent == opp
                 body_color = (
@@ -672,9 +665,10 @@ while running:
                 )
                 breath = int(math.sin(pygame.time.get_ticks() * 0.01 + opp["x"]) * 4)
 
+                # Fetch cached surface using quantized dimensions (Zero Lag)
                 goblin_surf = get_cached_procedural_goblin(
-                    max(10, drawEndX - drawStartX),
-                    max(10, drawEndY - drawStartY),
+                    drawEndX - drawStartX,
+                    drawEndY - drawStartY,
                     body_color,
                     breath,
                 )
