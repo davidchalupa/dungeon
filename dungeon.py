@@ -375,18 +375,22 @@ while running:
             elif actor == current_opponent:
                 living_heroes = [h for h in party_members if h["hp"] > 0]
                 if living_heroes:
-                    target = random.choice(living_heroes)
-                    dmg = random.randint(
-                        current_opponent["min_atk"], current_opponent["max_atk"]
-                    )
-                    target["hp"] = max(0, target["hp"] - dmg)
-                    attack_flash_timer = 20
-                    combat_message = f"{current_opponent['name']} attacks {target['name']} for {dmg} damage!"
+                    # Verify line of sight before the monster attacks
+                    if has_line_of_sight(posX, posY, current_opponent["x"], current_opponent["y"]):
+                        target = random.choice(living_heroes)
+                        dmg = random.randint(
+                            current_opponent["min_atk"], current_opponent["max_atk"]
+                        )
+                        target["hp"] = max(0, target["hp"] - dmg)
+                        attack_flash_timer = 20
+                        combat_message = f"{current_opponent['name']} attacks {target['name']} for {dmg} damage!"
 
-                    if all(h["hp"] <= 0 for h in party_members):
-                        combat_message = "Your party has fallen... Press ESC to quit."
-                        current_opponent["alive"] = False
-                        in_combat = False
+                        if all(h["hp"] <= 0 for h in party_members):
+                            combat_message = "Your party has fallen... Press ESC to quit."
+                            current_opponent["alive"] = False
+                            in_combat = False
+                    else:
+                        combat_message = f"{current_opponent['name']} cannot reach you through the wall!"
                 turn_index += 1
         else:
             start_combat_round()
@@ -425,6 +429,67 @@ while running:
                 oldPlaneX * math.sin(-ROT_SPEED) + planeY * math.cos(-ROT_SPEED)
             )
 
+
+        def check_ray_clear(x1, y1, x2, y2):
+            """Helper to check a single ray segment for walls."""
+            dist = math.hypot(x2 - x1, y2 - y1)
+            if dist == 0:
+                return True
+
+            # Increased sample density to 20 samples per unit distance
+            steps = int(dist * 20)
+            for i in range(steps + 1):
+                t = i / max(1, steps)
+                cx = x1 + (x2 - x1) * t
+                cy = y1 + (y2 - y1) * t
+                if is_wall(math.floor(cx), math.floor(cy)):
+                    return False
+            return True
+
+
+        def has_line_of_sight(x1, y1, x2, y2):
+            """
+            Robust line of sight check using multiple offset rays (center, left, right)
+            to prevent monsters and players from shooting or detecting through wall corners.
+            """
+            # 1. Check center ray
+            if not check_ray_clear(x1, y1, x2, y2):
+                return False
+
+            dx = x2 - x1
+            dy = y2 - y1
+            dist = math.hypot(dx, dy)
+            if dist == 0:
+                return True
+
+            # Calculate direction and perpendicular vector for body width offset
+            dirX = dx / dist
+            dirY = dy / dist
+            perpX = -dirY
+            perpY = dirX
+
+            # Offset distance matches PLAYER_RADIUS to account for character width
+            offset = 0.22
+
+            # 2. Check left flank ray
+            left_clear = check_ray_clear(
+                x1 + perpX * offset, y1 + perpY * offset,
+                x2 + perpX * offset, y2 + perpY * offset
+            )
+            if not left_clear:
+                return False
+
+            # 3. Check right flank ray
+            right_clear = check_ray_clear(
+                x1 - perpX * offset, y1 - perpY * offset,
+                x2 - perpX * offset, y2 - perpY * offset
+            )
+            if not right_clear:
+                return False
+
+            return True
+
+
         def check_enemy_encounters(posX, posY, dirX, dirY, planeX, planeY, opponents, in_combat):
             """
             Checks for enemy proximity, triggers combat, and aligns player view.
@@ -439,7 +504,8 @@ while running:
             for opp in opponents:
                 if opp["alive"]:
                     dist_to_enemy = math.hypot(posX - opp["x"], posY - opp["y"])
-                    if dist_to_enemy < 2.5:
+                    # Added has_line_of_sight check to prevent triggering through walls
+                    if dist_to_enemy < 2.5 and has_line_of_sight(posX, posY, opp["x"], opp["y"]):
                         in_combat = True
                         current_opp = opp
                         combat_msg = f"Encountered a {opp['name']}! Randomized combat started."
