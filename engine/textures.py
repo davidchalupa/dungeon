@@ -91,11 +91,11 @@ def create_grass_texture():
         _tiled(surf, lambda ox, oy: pygame.draw.line(
             surf, col, (bx + ox, by + oy), (bx + ox + dx, by + oy - bh)))
 
-    # A few tiny flowers
-    for _ in range(18):
-        fx_, fy_ = tex_rng.randint(0, tex_size - 1), tex_rng.randint(0, tex_size - 1)
-        col = tex_rng.choice([(235, 230, 120), (235, 235, 235), (200, 120, 180)])
-        _tiled(surf, lambda ox, oy: pygame.draw.rect(surf, col, (fx_ + ox, fy_ + oy, 2, 2)))
+    # # A few tiny flowers
+    # for _ in range(18):
+    #     fx_, fy_ = tex_rng.randint(0, tex_size - 1), tex_rng.randint(0, tex_size - 1)
+    #     col = tex_rng.choice([(235, 230, 120), (235, 235, 235), (200, 120, 180)])
+    #     _tiled(surf, lambda ox, oy: pygame.draw.rect(surf, col, (fx_ + ox, fy_ + oy, 2, 2)))
     return surf
 
 

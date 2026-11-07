@@ -95,7 +95,7 @@ def check_enemy_encounters(posX, posY, dirX, dirY, planeX, planeY, opponents, in
             if dist_to_enemy < 2.5 and has_line_of_sight(posX, posY, opp["x"], opp["y"]):
                 in_combat = True
                 current_opp = opp
-                combat_msg = f"Encountered a {opp['name']}! Randomized combat started."
+                combat_msg = f"Encountered a {opp['name']}! Combat started."
 
                 toEnemyX = opp["x"] - posX
                 toEnemyY = opp["y"] - posY
