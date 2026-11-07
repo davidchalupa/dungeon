@@ -3,6 +3,11 @@ import random
 import sys
 import pygame
 
+import numpy as np
+from engine.floor import FloorCaster, surface_to_array, make_sky
+
+from engine.textures import FLOOR_TEXTURES
+
 from assets.items import initialize_item_assets, dagger_item, longsword_item
 from assets.levels import LEVELS
 from assets.party_members import party_members
@@ -65,6 +70,20 @@ def initialize_hero_avatars():
 initialize_hero_avatars()
 initialize_item_assets()
 
+floor_caster = FloorCaster(RENDER_WIDTH, RENDER_HEIGHT)
+sky_surface = make_sky(RENDER_WIDTH, RENDER_HEIGHT // 2 + 1)
+
+def _to_frames(entry):
+    return entry if isinstance(entry, list) else [entry]
+
+FLOOR_ARRAYS = {
+    tid: [surface_to_array(f) for f in _to_frames(entry)]
+    for tid, entry in FLOOR_TEXTURES.items()
+}
+
+floor_map_array = None   # numpy copy of WORLD_MAP, rebuilt per level
+floor_tex_arrays = {}    # cell value -> list of frame arrays
+
 current_level_id = 1
 level_data = LEVELS[current_level_id]
 WORLD_MAP = level_data["map"]
@@ -99,6 +118,7 @@ def load_level(level_id):
     global current_level_id, level_data, WORLD_MAP
     global active_texture_id, posX, posY
     global dirX, dirY, planeX, planeY, opponents, in_combat, current_opponent, combat_message
+    global floor_map_array, floor_tex_arrays
 
     current_level_id = level_id
     level_data = LEVELS[level_id]
@@ -114,6 +134,14 @@ def load_level(level_id):
     in_combat = False
     current_opponent = None
     combat_message = "Exploring the dungeon..."
+
+    floor_map_array = np.array(WORLD_MAP)
+    floor_tex_arrays = {}
+    fid = level_data.get("floor_texture_id")
+    if fid:
+        floor_tex_arrays[0] = FLOOR_ARRAYS[fid]
+    if any(2 in row for row in WORLD_MAP):
+        floor_tex_arrays[2] = FLOOR_ARRAYS[2]
 
 
 # ==========================================
@@ -557,7 +585,7 @@ while running:
                         elif event.key == pygame.K_F2:
                             load_level(2)
                         elif event.key == pygame.K_F3:
-                            pass
+                            load_level(3)
                         elif event.key == pygame.K_ESCAPE:
                             running = False
 
@@ -631,12 +659,23 @@ while running:
             combat_message = enc_msg
             combat.start_combat_round(current_opponent)
 
-    # Render Ceiling and Floor on the 3D surface
-    screen.fill(CEILING_COLOR, (0, 0, RENDER_WIDTH, RENDER_HEIGHT // 2))
-    screen.fill(
-        FLOOR_COLOR,
-        (0, RENDER_HEIGHT // 2, RENDER_WIDTH, RENDER_HEIGHT // 2),
-    )
+    # Render Ceiling / Sky and Floor on the 3D surface
+    horizon = RENDER_HEIGHT // 2
+
+    if level_data.get("sky"):
+        screen.blit(sky_surface, (0, 0))                      # covers rows 0..horizon
+    else:
+        screen.fill(CEILING_COLOR, (0, 0, RENDER_WIDTH, horizon + 1))
+
+    if floor_caster is not None and floor_tex_arrays:
+        tex_arrays = {
+            cell: frames[(pygame.time.get_ticks() // 250) % len(frames)]
+            for cell, frames in floor_tex_arrays.items()
+        }
+        floor_caster.draw(screen, posX, posY, dirX, dirY, planeX, planeY,
+                          floor_map_array, tex_arrays)
+    else:
+        screen.fill(FLOOR_COLOR, (0, horizon + 1, RENDER_WIDTH, RENDER_HEIGHT - horizon - 1))
 
     tex_res = 256
     ray_cache = []

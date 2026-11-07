@@ -17,6 +17,14 @@ def start_combat_round(current_opponent):
         random.shuffle(turn_queue)
         turn_index = 0
 
+def is_water(x, y, map_data=None):
+    active_map = map_data if map_data is not None else WORLD_MAP
+    map_height = len(active_map)
+    map_width = len(active_map[0])
+    if x < 0 or y < 0 or x >= map_width or y >= map_height:
+        return False
+    return active_map[y][x] == 2
+
 
 def is_wall(x, y, map_data=None):
     active_map = map_data if map_data is not None else WORLD_MAP
@@ -24,13 +32,15 @@ def is_wall(x, y, map_data=None):
     map_width = len(active_map[0])
     if x < 0 or y < 0 or x >= map_width or y >= map_height:
         return True
-    return active_map[y][x] > 0
+    return active_map[y][x] == 1        # was: > 0
 
 
 def can_move_to(x, y, PLAYER_RADIUS):
     for cx in (x - PLAYER_RADIUS, x + PLAYER_RADIUS):
         for cy in (y - PLAYER_RADIUS, y + PLAYER_RADIUS):
             if is_wall(math.floor(cx), math.floor(cy)):
+                return False
+            if is_water(math.floor(cx), math.floor(cy)):
                 return False
     return True
 
