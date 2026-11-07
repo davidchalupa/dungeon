@@ -2,8 +2,17 @@ from assets.items import dagger_item, longsword_item
 
 
 # ==========================================
-# PARTY DATA & ASSETS LOADING
+# SPELLS DATABASE & PARTY CONFIGURATION
 # ==========================================
+SPELLS = {
+    "Magic Arrow": {
+        "name": "Magic Arrow",
+        "cost": 1,
+        "damage": 5,
+        "desc": "Fires a concentrated bolt of arcane energy.",
+    }
+}
+
 party_members = [
     {
         "name": "Thorne",
@@ -14,6 +23,7 @@ party_members = [
         "mp": 0,
         "max_mp": 0,
         "weapon": longsword_item,
+        "spells": [],
     },
     {
         "name": "Lyra",
@@ -24,6 +34,7 @@ party_members = [
         "mp": 10,
         "max_mp": 10,
         "weapon": dagger_item,
+        "spells": ["Magic Arrow"],
     },
     {
         "name": "Reece",
@@ -34,6 +45,7 @@ party_members = [
         "mp": 0,
         "max_mp": 0,
         "weapon": longsword_item,
+        "spells": [],
     },
     {
         "name": "Vesper",
@@ -44,5 +56,6 @@ party_members = [
         "mp": 3,
         "max_mp": 3,
         "weapon": longsword_item,
+        "spells": ["Magic Arrow"],
     },
 ]
