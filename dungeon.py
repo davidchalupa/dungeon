@@ -392,7 +392,7 @@ def select_spell_from_book(hero, spell_idx):
                 viewing_spell_book = None
                 targeting_spell = "Heal"
                 spellcaster = hero
-                combat_message = f"CHOOSE TARGET FOR HEAL: Press [1-4]"
+                combat_message = f"CHOOSE PARTY MEMBER TO HEAL: Press [1-4]"
         else:
             combat_message = f"Not enough mana to cast {s_name}!"
             viewing_spell_book = None
@@ -796,7 +796,7 @@ while running:
         pygame.draw.rect(game_surface, (10, 40, 20), banner_rect)
         pygame.draw.rect(game_surface, (50, 255, 120), banner_rect, 3)
 
-        banner_title = font_title.render("✨ CHOOSE TARGET FOR HEAL ✨", True, (100, 255, 150))
+        banner_title = font_title.render("CHOOSE PARTY MEMBER TO HEAL", True, (100, 255, 150))
         banner_sub = font_med.render("Press party keys [1], [2], [3], or [4]  |  [ESC] to Cancel", True,
                                      (220, 240, 220))
 
