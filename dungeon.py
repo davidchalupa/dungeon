@@ -466,13 +466,25 @@ while running:
             else:
                 if not in_combat and targeting_spell is None:
                     if event.key == pygame.K_1:
-                        selected_hero_index = 0
+                        if selected_hero_index == 0:
+                            viewing_character = 0
+                        else:
+                            selected_hero_index = 0
                     elif event.key == pygame.K_2:
-                        selected_hero_index = 1
+                        if selected_hero_index == 1:
+                            viewing_character = 1
+                        else:
+                            selected_hero_index = 1
                     elif event.key == pygame.K_3:
-                        selected_hero_index = 2
+                        if selected_hero_index == 2:
+                            viewing_character = 2
+                        else:
+                            selected_hero_index = 2
                     elif event.key == pygame.K_4:
-                        selected_hero_index = 3
+                        if selected_hero_index == 3:
+                            viewing_character = 3
+                        else:
+                            selected_hero_index = 3
                     elif event.key == pygame.K_c:
                         hero = party_members[selected_hero_index]
                         if hero.get("spells"):
@@ -823,7 +835,7 @@ while running:
         status_box = pygame.Rect(20, 40, VIRTUAL_WIDTH - 40, 36)
         pygame.draw.rect(game_surface, (15, 15, 20), status_box)
         pygame.draw.rect(game_surface, (80, 80, 100), status_box, 1)
-        status_lbl = font_med.render(f"Status: {combat_message}  |  [1-4] Select Hero  |  [C] Open Spells", True,
+        status_lbl = font_med.render(f"Status: {combat_message}  |  [1-4] Select (Press again for Sheet)  |  [C] Spells", True,
                                      (220, 220, 220))
         game_surface.blit(status_lbl, (status_box.x + 12, status_box.y + 8))
 
