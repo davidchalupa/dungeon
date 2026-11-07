@@ -7,7 +7,9 @@ from assets.items import initialize_item_assets, dagger_item, longsword_item
 from assets.levels import LEVELS
 from assets.party_members import party_members
 from assets.spells import SPELLS
-from engine.textures import TEXTURES
+import engine.combat as combat
+import engine.renderer as renderer
+from engine.procedural_sprites import get_cached_procedural_goblin_ghost
 
 # Initialize Pygame
 pygame.init()
@@ -48,6 +50,7 @@ initialize_item_assets()
 current_level_id = 1
 level_data = LEVELS[current_level_id]
 WORLD_MAP = level_data["map"]
+combat.WORLD_MAP = WORLD_MAP  # Sync map with combat module
 active_texture_id = level_data["texture_id"]
 opponents = [dict(o) for o in level_data["opponents"]]
 
@@ -66,20 +69,9 @@ viewing_character = None
 viewing_spell_book = None
 in_combat = False
 current_opponent = None
-turn_queue = []
-turn_index = 0
 combat_message = "An enemy blocks your path!"
 attack_flash_timer = 0
 spell_effect_timer = 0
-
-
-def start_combat_round():
-    global turn_queue, turn_index
-    living_heroes = [h for h in party_members if h["hp"] > 0]
-    if current_opponent and current_opponent["alive"]:
-        turn_queue = living_heroes + [current_opponent]
-        random.shuffle(turn_queue)
-        turn_index = 0
 
 
 def load_level(level_id):
@@ -90,6 +82,7 @@ def load_level(level_id):
     current_level_id = level_id
     level_data = LEVELS[level_id]
     WORLD_MAP = level_data["map"]
+    combat.WORLD_MAP = WORLD_MAP  # Keep combat module synced
     active_texture_id = level_data["texture_id"]
 
     posX, posY = 1.5, 1.5
@@ -99,87 +92,6 @@ def load_level(level_id):
     opponents = [dict(o) for o in level_data["opponents"]]
     in_combat = False
     current_opponent = None
-
-
-def is_wall(x, y):
-    map_height = len(WORLD_MAP)
-    map_width = len(WORLD_MAP[0])
-    if x < 0 or y < 0 or x >= map_width or y >= map_height:
-        return True
-    return WORLD_MAP[y][x] > 0
-
-
-def can_move_to(x, y):
-    for cx in (x - PLAYER_RADIUS, x + PLAYER_RADIUS):
-        for cy in (y - PLAYER_RADIUS, y + PLAYER_RADIUS):
-            if is_wall(math.floor(cx), math.floor(cy)):
-                return False
-    return True
-
-
-def check_ray_clear(x1, y1, x2, y2):
-    dist = math.hypot(x2 - x1, y2 - y1)
-    if dist == 0:
-        return True
-    steps = int(dist * 15)
-    for i in range(steps + 1):
-        t = i / max(1, steps)
-        cx = x1 + (x2 - x1) * t
-        cy = y1 + (y2 - y1) * t
-        if is_wall(math.floor(cx), math.floor(cy)):
-            return False
-    return True
-
-
-def has_line_of_sight(x1, y1, x2, y2):
-    if not check_ray_clear(x1, y1, x2, y2):
-        return False
-
-    dx = x2 - x1
-    dy = y2 - y1
-    dist = math.hypot(dx, dy)
-    if dist == 0:
-        return True
-
-    dirX = dx / dist
-    dirY = dy / dist
-    perpX = -dirY
-    perpY = dirX
-    offset = 0.22
-
-    if not check_ray_clear(x1 + perpX * offset, y1 + perpY * offset, x2 + perpX * offset, y2 + perpY * offset):
-        return False
-    if not check_ray_clear(x1 - perpX * offset, y1 - perpY * offset, x2 - perpX * offset, y2 - perpY * offset):
-        return False
-    return True
-
-
-def check_enemy_encounters(posX, posY, dirX, dirY, planeX, planeY, opponents, in_combat):
-    if in_combat:
-        return in_combat, None, dirX, dirY, planeX, planeY, "An enemy blocks your path!"
-
-    current_opp = None
-    combat_msg = "An enemy blocks your path!"
-
-    for opp in opponents:
-        if opp["alive"]:
-            dist_to_enemy = math.hypot(posX - opp["x"], posY - opp["y"])
-            if dist_to_enemy < 2.5 and has_line_of_sight(posX, posY, opp["x"], opp["y"]):
-                in_combat = True
-                current_opp = opp
-                combat_msg = f"Encountered a {opp['name']}! Randomized combat started."
-
-                toEnemyX = opp["x"] - posX
-                toEnemyY = opp["y"] - posY
-                dist = math.hypot(toEnemyX, toEnemyY)
-                if dist > 0:
-                    dirX = toEnemyX / dist
-                    dirY = toEnemyY / dist
-                    planeX = dirY * 0.4
-                    planeY = -dirX * 0.4
-                break
-
-    return in_combat, current_opp, dirX, dirY, planeX, planeY, combat_msg
 
 
 # ==========================================
@@ -358,94 +270,14 @@ def draw_character_subscreen(surface, hero):
     surface.blit(footer_txt, footer_txt.get_rect(center=(bg_rect.centerx, 390)))
 
 
-# Pre-cache texture vertical strips for performance
-TEXTURE_STRIPS = {}
-for tid, tex in TEXTURES.items():
-    TEXTURE_STRIPS[tid] = [tex.subsurface((x, 0, 1, 256)) for x in range(256)]
-
-goblin_ghost_surface_cache = {}
-
-
-def get_cached_procedural_goblin_ghost(width, height, body_color, breath):
-    target_w = max(10, width)
-    target_h = max(10, height)
-
-    qw = max(10, (target_w + 1) // 2 * 2)
-    qh = max(10, (target_h + 1) // 2 * 2)
-
-    key = (qw, qh, body_color, breath)
-    if key in goblin_ghost_surface_cache:
-        return goblin_ghost_surface_cache[key]
-
-    base_size = 256
-    base_surf = pygame.Surface((base_size, base_size), pygame.SRCALPHA)
-
-    cx = base_size // 2
-    cy = base_size // 2 + breath
-
-    aura_color = (body_color[0], body_color[1], body_color[2], 50)
-    pygame.draw.ellipse(base_surf, aura_color, (cx - 75, cy - 85, 150, 190))
-
-    body_points = [
-        (cx, cy - 70),
-        (cx - 52, cy - 18),
-        (cx - 38, cy + 65),
-        (cx - 16, cy + 92),
-        (cx, cy + 78),
-        (cx + 16, cy + 92),
-        (cx + 38, cy + 65),
-        (cx + 52, cy - 18),
-    ]
-    shroud_color = (body_color[0], body_color[1], body_color[2], 170)
-    pygame.draw.polygon(base_surf, shroud_color, body_points)
-
-    head_radius = 40
-    head_center_y = cy - 35
-    head_color = (body_color[0], body_color[1], body_color[2], 210)
-    pygame.draw.circle(base_surf, head_color, (cx, head_center_y), head_radius)
-
-    ear_left = [(cx - 32, head_center_y - 12), (cx - 78, head_center_y - 42), (cx - 38, head_center_y + 12)]
-    ear_right = [(cx + 32, head_center_y - 12), (cx + 78, head_center_y - 42), (cx + 38, head_center_y + 12)]
-    pygame.draw.polygon(base_surf, head_color, ear_left)
-    pygame.draw.polygon(base_surf, head_color, ear_right)
-
-    inner_color = (max(0, body_color[0] - 50), max(0, body_color[1] - 50), max(0, body_color[2] - 50), 190)
-    pygame.draw.polygon(base_surf, inner_color,
-                        [(cx - 38, head_center_y - 6), (cx - 65, head_center_y - 30), (cx - 40, head_center_y + 8)])
-    pygame.draw.polygon(base_surf, inner_color,
-                        [(cx + 38, head_center_y - 6), (cx + 65, head_center_y - 30), (cx + 40, head_center_y + 8)])
-
-    eye_y = head_center_y - 4
-    eye_offset = 17
-    eye_rad = 7
-    glow_eye_color = (240, 255, 120, 255) if body_color[0] < 150 else (255, 190, 190, 255)
-
-    pygame.draw.circle(base_surf, glow_eye_color, (cx - eye_offset, eye_y), eye_rad)
-    pygame.draw.circle(base_surf, glow_eye_color, (cx + eye_offset, eye_y), eye_rad)
-
-    pupil_color = (255, 255, 255, 255)
-    pygame.draw.circle(base_surf, pupil_color, (cx - eye_offset, eye_y), 3)
-    pygame.draw.circle(base_surf, pupil_color, (cx + eye_offset, eye_y), 3)
-
-    sparkle_color = (170, 255, 235, 160)
-    pygame.draw.circle(base_surf, sparkle_color, (cx - 58, cy + 25), 4)
-    pygame.draw.circle(base_surf, sparkle_color, (cx + 60, cy - 12), 5)
-    pygame.draw.circle(base_surf, sparkle_color, (cx - 28, cy + 65), 3)
-    pygame.draw.circle(base_surf, sparkle_color, (cx + 32, cy + 55), 4)
-
-    scaled_surf = pygame.transform.smoothscale(base_surf, (qw, qh))
-    goblin_ghost_surface_cache[key] = scaled_surf
-    return scaled_surf
-
-
 # ==========================================
 # MAIN GAME LOOP
 # ==========================================
 running = True
 while running:
     current_actor = None
-    if in_combat and turn_queue and turn_index < len(turn_queue):
-        current_actor = turn_queue[turn_index]
+    if in_combat and combat.turn_queue and combat.turn_index < len(combat.turn_queue):
+        current_actor = combat.turn_queue[combat.turn_index]
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -472,7 +304,7 @@ while running:
                                 current_opponent = None
                             else:
                                 combat_message = f"{hero['name']} casts {spell['name']} for {dmg} magical damage! Next turn..."
-                                turn_index += 1
+                                combat.turn_index += 1
                             viewing_spell_book = None
                         else:
                             combat_message = f"Not enough mana to cast {spell['name']}!"
@@ -523,7 +355,7 @@ while running:
                                     combat_message = (
                                         f"{hero['name']} attacks for {dmg} damage! Next turn..."
                                     )
-                                    turn_index += 1
+                                    combat.turn_index += 1
                             elif event.key == pygame.K_c:
                                 if hero.get("spells"):
                                     viewing_spell_book = hero
@@ -533,7 +365,7 @@ while running:
                                 combat_message = (
                                     f"{hero['name']} waits defensively. Next turn..."
                                 )
-                                turn_index += 1
+                                combat.turn_index += 1
                 else:
                     if not in_combat:
                         if event.key == pygame.K_F1:
@@ -546,14 +378,14 @@ while running:
                             running = False
 
     if in_combat and current_opponent and current_opponent["alive"]:
-        if turn_index < len(turn_queue):
-            actor = turn_queue[turn_index]
+        if combat.turn_index < len(combat.turn_queue):
+            actor = combat.turn_queue[combat.turn_index]
             if "hp" in actor and actor["hp"] <= 0:
-                turn_index += 1
+                combat.turn_index += 1
             elif actor == current_opponent:
                 living_heroes = [h for h in party_members if h["hp"] > 0]
                 if living_heroes:
-                    if has_line_of_sight(posX, posY, current_opponent["x"], current_opponent["y"]):
+                    if combat.has_line_of_sight(posX, posY, current_opponent["x"], current_opponent["y"]):
                         target = random.choice(living_heroes)
                         dmg = random.randint(
                             current_opponent["min_atk"], current_opponent["max_atk"]
@@ -568,25 +400,25 @@ while running:
                             in_combat = False
                     else:
                         combat_message = f"{current_opponent['name']} cannot reach you through the wall!"
-                turn_index += 1
+                combat.turn_index += 1
         else:
-            start_combat_round()
+            combat.start_combat_round(current_opponent)
 
     if viewing_character is None and viewing_spell_book is None and not in_combat:
         keys = pygame.key.get_pressed()
         if keys[pygame.K_UP]:
             newX = posX + dirX * MOVE_SPEED
             newY = posY + dirY * MOVE_SPEED
-            if can_move_to(newX, posY):
+            if combat.can_move_to(newX, posY, PLAYER_RADIUS):
                 posX = newX
-            if can_move_to(posX, newY):
+            if combat.can_move_to(posX, newY, PLAYER_RADIUS):
                 posY = newY
         if keys[pygame.K_DOWN]:
             newX = posX - dirX * MOVE_SPEED
             newY = posY - dirY * MOVE_SPEED
-            if can_move_to(newX, posY):
+            if combat.can_move_to(newX, posY, PLAYER_RADIUS):
                 posX = newX
-            if can_move_to(posX, newY):
+            if combat.can_move_to(posX, newY, PLAYER_RADIUS):
                 posY = newY
 
         if keys[pygame.K_LEFT]:
@@ -605,14 +437,13 @@ while running:
             planeY = oldPlaneX * math.sin(-ROT_SPEED) + planeY * math.cos(-ROT_SPEED)
 
     if viewing_character is None and viewing_spell_book is None and not in_combat:
-        in_combat, current_opponent, dirX, dirY, planeX, planeY, combat_message = check_enemy_encounters(
+        in_combat, current_opponent, dirX, dirY, planeX, planeY, combat_message = combat.check_enemy_encounters(
             posX, posY, dirX, dirY, planeX, planeY, opponents, in_combat
         )
         if current_opponent:
-            start_combat_round()
+            combat.start_combat_round(current_opponent)
 
     # Render Ceiling and Floor on the 3D surface
-    screen.fill(CEILING_COLOR, (0, 0, RENDER_HEIGHT, RENDER_HEIGHT // 2))  # Wait, keep width RENDER_WIDTH
     screen.fill(CEILING_COLOR, (0, 0, RENDER_WIDTH, RENDER_HEIGHT // 2))
     screen.fill(
         FLOOR_COLOR,
@@ -661,7 +492,7 @@ while running:
                 mapY += stepY
                 side = 1
 
-            if is_wall(mapX, mapY):
+            if combat.is_wall(mapX, mapY):
                 hit = 1
 
         if side == 0:
@@ -681,8 +512,8 @@ while running:
             "rayDirY": rayDirY,
         })
 
-    # Wall Rendering Pass
-    active_strips = TEXTURE_STRIPS[active_texture_id]
+    # Wall Rendering Pass using renderer.TEXTURE_STRIPS
+    active_strips = renderer.TEXTURE_STRIPS[active_texture_id]
     for x in range(RENDER_WIDTH):
         data = ray_cache[x]
         perpWallDist = data["perpWallDist"]
@@ -722,7 +553,7 @@ while running:
     # Sort opponents by distance (Painter's Algorithm)
     sorted_opponents = sorted(opponents, key=lambda o: math.hypot(o["x"] - posX, o["y"] - posY), reverse=True)
 
-    # Render opponents/sprites
+    # Render opponents/sprites using procedural factory
     for opp in sorted_opponents:
         if opp["alive"]:
             spriteX = opp["x"] - posX
@@ -804,8 +635,9 @@ while running:
             (255, 100, 100),
         )
         turn_owner = (
-            current_actor["name"]
-            if (current_actor and current_actor != current_opponent)
+            combat.turn_queue[combat.turn_index]["name"]
+            if (combat.turn_queue and combat.turn_index < len(combat.turn_queue) and combat.turn_queue[
+                combat.turn_index] != current_opponent)
             else "Enemy"
         )
         msg_lbl = font_med.render(
@@ -828,7 +660,8 @@ while running:
     window.blit(txt, (10, 10))
 
     # Draw Party UI at the bottom with active character frame
-    draw_party_ui(window, current_actor=current_actor)
+    draw_party_ui(window, current_actor=combat.turn_queue[combat.turn_index] if (
+                in_combat and combat.turn_queue and combat.turn_index < len(combat.turn_queue)) else None)
 
     # Render Subscreens if active
     if viewing_spell_book is not None:
