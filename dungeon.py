@@ -259,11 +259,13 @@ def draw_spell_book(surface, hero):
                 pygame.draw.line(surface, (255, 180, 180),
                                  (center_x - 15, center_y + 1),
                                  (center_x + 17, center_y + 1), width=2)
+                pygame.draw.line(surface, (255, 180, 180),
+                                 (center_x + 1, center_y - 15),
+                                 (center_x + 1, center_y + 17), width=3)
                 # Vertical bar - extends up/down from center
                 pygame.draw.line(surface, (255, 80, 80),
                                  (center_x, center_y - 16),
                                  (center_x, center_y + 16), width=3)
-
                 # Horizontal bar - extends left/right from center
                 pygame.draw.line(surface, (255, 80, 80),
                                  (center_x - 16, center_y),
