@@ -5,14 +5,15 @@ import pygame
 
 from assets.items import initialize_item_assets, dagger_item, longsword_item
 from assets.levels import LEVELS
-from assets.party_members import party_members, SPELLS
+from assets.party_members import party_members
+from assets.spells import SPELLS
 from engine.textures import TEXTURES
 
 # Initialize Pygame
 pygame.init()
 
-# Window Display Resolution (Adjusted height to fit the bottom picture bar)
-WINDOW_WIDTH, WINDOW_HEIGHT = 840, 720
+# Window Display Resolution (Extended height to 740 to fully fit the bottom UI panel & MP bars)
+WINDOW_WIDTH, WINDOW_HEIGHT = 840, 740
 window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 pygame.display.set_caption("Dungeon Engine - High Speed & Bright")
 
@@ -116,17 +117,84 @@ def can_move_to(x, y):
     return True
 
 
+def check_ray_clear(x1, y1, x2, y2):
+    dist = math.hypot(x2 - x1, y2 - y1)
+    if dist == 0:
+        return True
+    steps = int(dist * 15)
+    for i in range(steps + 1):
+        t = i / max(1, steps)
+        cx = x1 + (x2 - x1) * t
+        cy = y1 + (y2 - y1) * t
+        if is_wall(math.floor(cx), math.floor(cy)):
+            return False
+    return True
+
+
+def has_line_of_sight(x1, y1, x2, y2):
+    if not check_ray_clear(x1, y1, x2, y2):
+        return False
+
+    dx = x2 - x1
+    dy = y2 - y1
+    dist = math.hypot(dx, dy)
+    if dist == 0:
+        return True
+
+    dirX = dx / dist
+    dirY = dy / dist
+    perpX = -dirY
+    perpY = dirX
+    offset = 0.22
+
+    if not check_ray_clear(x1 + perpX * offset, y1 + perpY * offset, x2 + perpX * offset, y2 + perpY * offset):
+        return False
+    if not check_ray_clear(x1 - perpX * offset, y1 - perpY * offset, x2 - perpX * offset, y2 - perpY * offset):
+        return False
+    return True
+
+
+def check_enemy_encounters(posX, posY, dirX, dirY, planeX, planeY, opponents, in_combat):
+    if in_combat:
+        return in_combat, None, dirX, dirY, planeX, planeY, "An enemy blocks your path!"
+
+    current_opp = None
+    combat_msg = "An enemy blocks your path!"
+
+    for opp in opponents:
+        if opp["alive"]:
+            dist_to_enemy = math.hypot(posX - opp["x"], posY - opp["y"])
+            if dist_to_enemy < 2.5 and has_line_of_sight(posX, posY, opp["x"], opp["y"]):
+                in_combat = True
+                current_opp = opp
+                combat_msg = f"Encountered a {opp['name']}! Randomized combat started."
+
+                toEnemyX = opp["x"] - posX
+                toEnemyY = opp["y"] - posY
+                dist = math.hypot(toEnemyX, toEnemyY)
+                if dist > 0:
+                    dirX = toEnemyX / dist
+                    dirY = toEnemyY / dist
+                    planeX = dirY * 0.4
+                    planeY = -dirX * 0.4
+                break
+
+    return in_combat, current_opp, dirX, dirY, planeX, planeY, combat_msg
+
+
 # ==========================================
-# PARTY UI RENDER (Bottom Bar with HP/MP Bars & Turn Frame)
+# PARTY UI RENDER (Vertically Centered Bottom Bar)
 # ==========================================
 def draw_party_ui(surface, current_actor=None):
-    bar_rect = pygame.Rect(0, 580, WINDOW_WIDTH, 140)
+    bar_rect = pygame.Rect(0, 580, WINDOW_WIDTH, 160)
     pygame.draw.rect(surface, (20, 20, 25), bar_rect)
     pygame.draw.line(surface, (50, 50, 60), (0, 580), (WINDOW_WIDTH, 580), 2)
 
     spacing = 160
     start_x = (WINDOW_WIDTH - (len(party_members) * spacing)) / 2
-    start_y = 590
+
+    total_content_height = 138
+    start_y = 580 + (160 - total_content_height) // 2
 
     for i, hero in enumerate(party_members):
         cx = start_x + i * spacing
@@ -137,18 +205,19 @@ def draw_party_ui(surface, current_actor=None):
                 surface, (255, 215, 0), (cx - 3, start_y - 3, HERO_PORTRAIT_SIZE + 6, HERO_PORTRAIT_SIZE + 6), 3
             )
 
+        name_y = start_y + HERO_PORTRAIT_SIZE + 6
         name_txt = font_med.render(
             f"[{i + 1}] {hero['name']}",
             True,
             (230, 230, 230) if hero["hp"] > 0 else (120, 120, 120),
         )
-        name_rect = name_txt.get_rect(center=(cx + HERO_PORTRAIT_SIZE / 2, start_y + HERO_PORTRAIT_SIZE + 12))
+        name_rect = name_txt.get_rect(midtop=(cx + HERO_PORTRAIT_SIZE / 2, name_y))
         surface.blit(name_txt, name_rect)
 
         hp_bar_width = HERO_PORTRAIT_SIZE - 10
         hp_bar_height = 5
         hp_bar_x = cx + 5
-        hp_bar_y = start_y + HERO_PORTRAIT_SIZE + 22
+        hp_bar_y = name_y + 16 + 6
 
         bg_bar_rect = pygame.Rect(hp_bar_x, hp_bar_y, hp_bar_width, hp_bar_height)
         pygame.draw.rect(surface, (60, 30, 30), bg_bar_rect)
@@ -162,8 +231,8 @@ def draw_party_ui(surface, current_actor=None):
         pygame.draw.rect(surface, (100, 100, 100), bg_bar_rect, 1)
 
         # MP Bar
-        if hero["max_mp"] > 0:
-            mp_bar_y = hp_bar_y + 8
+        if hero.get("max_mp", 0) > 0:
+            mp_bar_y = hp_bar_y + hp_bar_height + 4
             bg_mp_rect = pygame.Rect(hp_bar_x, mp_bar_y, hp_bar_width, hp_bar_height)
             pygame.draw.rect(surface, (30, 30, 60), bg_mp_rect)
             mp_ratio = max(0.0, min(1.0, hero["mp"] / max(1, hero["max_mp"])))
@@ -211,9 +280,12 @@ def draw_spell_book(surface, hero):
 
             icon_rect = pygame.Rect(spell_box.x + 12, spell_box.y + 12, 46, 46)
             pygame.draw.rect(surface, (40, 70, 130), icon_rect)
-            pygame.draw.line(surface, (200, 240, 255), (icon_rect.left + 10, icon_rect.centery), (icon_rect.right - 10, icon_rect.centery), 3)
-            pygame.draw.line(surface, (200, 240, 255), (icon_rect.right - 16, icon_rect.centery - 8), (icon_rect.right - 10, icon_rect.centery), 3)
-            pygame.draw.line(surface, (200, 240, 255), (icon_rect.right - 16, icon_rect.centery + 8), (icon_rect.right - 10, icon_rect.centery), 3)
+            pygame.draw.line(surface, (200, 240, 255), (icon_rect.left + 10, icon_rect.centery),
+                             (icon_rect.right - 10, icon_rect.centery), 3)
+            pygame.draw.line(surface, (200, 240, 255), (icon_rect.right - 16, icon_rect.centery - 8),
+                             (icon_rect.right - 10, icon_rect.centery), 3)
+            pygame.draw.line(surface, (200, 240, 255), (icon_rect.right - 16, icon_rect.centery + 8),
+                             (icon_rect.right - 10, icon_rect.centery), 3)
 
             name_txt = font_large.render(f"[{i + 1}] {spell['name']}", True, (255, 255, 255))
             cost_txt = font_med.render(f"Cost: {spell['cost']} MP", True, (120, 180, 255))
@@ -338,8 +410,10 @@ def get_cached_procedural_goblin_ghost(width, height, body_color, breath):
     pygame.draw.polygon(base_surf, head_color, ear_right)
 
     inner_color = (max(0, body_color[0] - 50), max(0, body_color[1] - 50), max(0, body_color[2] - 50), 190)
-    pygame.draw.polygon(base_surf, inner_color, [(cx - 38, head_center_y - 6), (cx - 65, head_center_y - 30), (cx - 40, head_center_y + 8)])
-    pygame.draw.polygon(base_surf, inner_color, [(cx + 38, head_center_y - 6), (cx + 65, head_center_y - 30), (cx + 40, head_center_y + 8)])
+    pygame.draw.polygon(base_surf, inner_color,
+                        [(cx - 38, head_center_y - 6), (cx - 65, head_center_y - 30), (cx - 40, head_center_y + 8)])
+    pygame.draw.polygon(base_surf, inner_color,
+                        [(cx + 38, head_center_y - 6), (cx + 65, head_center_y - 30), (cx + 40, head_center_y + 8)])
 
     eye_y = head_center_y - 4
     eye_offset = 17
@@ -530,73 +604,6 @@ while running:
             planeX = planeX * math.cos(-ROT_SPEED) - planeY * math.sin(-ROT_SPEED)
             planeY = oldPlaneX * math.sin(-ROT_SPEED) + planeY * math.cos(-ROT_SPEED)
 
-
-    def check_ray_clear(x1, y1, x2, y2):
-        dist = math.hypot(x2 - x1, y2 - y1)
-        if dist == 0:
-            return True
-        steps = int(dist * 15)
-        for i in range(steps + 1):
-            t = i / max(1, steps)
-            cx = x1 + (x2 - x1) * t
-            cy = y1 + (y2 - y1) * t
-            if is_wall(math.floor(cx), math.floor(cy)):
-                return False
-        return True
-
-
-    def has_line_of_sight(x1, y1, x2, y2):
-        if not check_ray_clear(x1, y1, x2, y2):
-            return False
-
-        dx = x2 - x1
-        dy = y2 - y1
-        dist = math.hypot(dx, dy)
-        if dist == 0:
-            return True
-
-        dirX = dx / dist
-        dirY = dy / dist
-        perpX = -dirY
-        perpY = dirX
-        offset = 0.22
-
-        if not check_ray_clear(x1 + perpX * offset, y1 + perpY * offset, x2 + perpX * offset, y2 + perpY * offset):
-            return False
-        if not check_ray_clear(x1 - perpX * offset, y1 - perpY * offset, x2 - perpX * offset, y2 - perpY * offset):
-            return False
-        return True
-
-
-    def check_enemy_encounters(posX, posY, dirX, dirY, planeX, planeY, opponents, in_combat):
-        if in_combat:
-            return in_combat, None, dirX, dirY, planeX, planeY, "An enemy blocks your path!"
-
-        current_opp = None
-        combat_msg = "An enemy blocks your path!"
-
-        for opp in opponents:
-            if opp["alive"]:
-                dist_to_enemy = math.hypot(posX - opp["x"], posY - opp["y"])
-                if dist_to_enemy < 2.5 and has_line_of_sight(posX, posY, opp["x"], opp["y"]):
-                    in_combat = True
-                    current_opp = opp
-                    combat_msg = f"Encountered a {opp['name']}! Randomized combat started."
-
-                    toEnemyX = opp["x"] - posX
-                    toEnemyY = opp["y"] - posY
-                    dist = math.hypot(toEnemyX, toEnemyY)
-                    if dist > 0:
-                        dirX = toEnemyX / dist
-                        dirY = toEnemyY / dist
-                        planeX = dirY * 0.4
-                        planeY = -dirX * 0.4
-                    break
-
-        return in_combat, current_opp, dirX, dirY, planeX, planeY, combat_msg
-
-
-    # FIXED: Only check for encounters when NOT already in combat
     if viewing_character is None and viewing_spell_book is None and not in_combat:
         in_combat, current_opponent, dirX, dirY, planeX, planeY, combat_message = check_enemy_encounters(
             posX, posY, dirX, dirY, planeX, planeY, opponents, in_combat
@@ -605,6 +612,7 @@ while running:
             start_combat_round()
 
     # Render Ceiling and Floor on the 3D surface
+    screen.fill(CEILING_COLOR, (0, 0, RENDER_HEIGHT, RENDER_HEIGHT // 2))  # Wait, keep width RENDER_WIDTH
     screen.fill(CEILING_COLOR, (0, 0, RENDER_WIDTH, RENDER_HEIGHT // 2))
     screen.fill(
         FLOOR_COLOR,
