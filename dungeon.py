@@ -124,16 +124,13 @@ def draw_party_ui(surface, current_actor=None):
     spacing = 160
     start_x = (w - (len(party_members) * spacing)) / 2
 
-    # Total content height: portrait (96) + gap (6) + name (16) + gap (6) + HP bar (5) + gap (4) + MP bar (5) = 138px
     total_content_height = HERO_PORTRAIT_SIZE + 6 + 16 + 6 + 5 + 4 + 5
     start_y = ui_top + (ui_height - total_content_height) // 2 + 6
-
-    # Offset to center the 96px portrait inside its 160px slot
     portrait_offset = (spacing - HERO_PORTRAIT_SIZE) // 2
 
     for i, hero in enumerate(party_members):
         slot_x = start_x + i * spacing
-        cx = slot_x + portrait_offset  # Centered X position for portrait
+        cx = slot_x + portrait_offset
 
         surface.blit(hero["avatar"], (cx, start_y))
 
@@ -290,6 +287,38 @@ def draw_character_subscreen(surface, hero):
     surface.blit(hp_txt, (stats_x, stats_y + 50))
     surface.blit(mp_txt, (stats_x, stats_y + 75))
     surface.blit(atk_txt, (stats_x, stats_y + 100))
+
+    sil_center_x = bg_rect.centerx
+    sil_center_y = bg_rect.centery + 30
+    sil_color = (55, 55, 70)
+
+    pygame.draw.circle(surface, sil_color, (sil_center_x, sil_center_y - 80), 20)
+    torso_rect = pygame.Rect(sil_center_x - 28, sil_center_y - 55, 56, 85)
+    pygame.draw.rect(surface, sil_color, torso_rect, border_radius=6)
+    pygame.draw.rect(
+        surface,
+        sil_color,
+        (sil_center_x - 46, sil_center_y - 50, 14, 75),
+        border_radius=4,
+    )
+    pygame.draw.rect(
+        surface,
+        sil_color,
+        (sil_center_x + 32, sil_center_y - 50, 14, 75),
+        border_radius=4,
+    )
+
+    armor_slot_rect = pygame.Rect(sil_center_x - 20, sil_center_y - 40, 40, 40)
+    pygame.draw.rect(surface, (30, 30, 38), armor_slot_rect)
+    pygame.draw.rect(surface, (110, 100, 70), armor_slot_rect, 2)
+
+    weapon_slot_rect = pygame.Rect(sil_center_x - 80, sil_center_y - 20, 40, 40)
+    pygame.draw.rect(surface, (30, 30, 38), weapon_slot_rect)
+    pygame.draw.rect(surface, (110, 100, 70), weapon_slot_rect, 2)
+
+    if hero["weapon"] is not None and "icon" in hero["weapon"]:
+        icon_rect = hero["weapon"]["icon"].get_rect(center=weapon_slot_rect.center)
+        surface.blit(hero["weapon"]["icon"], icon_rect)
 
     footer_txt = font_med.render(
         "Press [ESC] to return to Dungeon", True, (170, 170, 170)
@@ -686,17 +715,19 @@ while running:
         game_surface.blit(msg_lbl, (combat_box.x + 15, combat_box.y + 35))
         game_surface.blit(action_lbl, (combat_box.x + 15, combat_box.y + 55))
 
-    # Draw Level Title Overlay & Switch hints
+    # Draw Level Title Overlay & Dynamic Switch hints
+    fullscreen_text = "[F11] Exit Fullscreen" if is_fullscreen else "[F11] Fullscreen"
     txt = font_med.render(
-        f"Level: {level_data['name']} | [5/6] Switch Level | [F11] Fullscreen",
+        f"Level: {level_data['name']} | [F1/F2] Switch Level | {fullscreen_text}",
         True,
         (240, 240, 240),
     )
     game_surface.blit(txt, (10, 10))
 
     # Draw Party UI at the bottom seamlessly with active character frame
-    draw_party_ui(game_surface, current_actor=combat.turn_queue[combat.turn_index] if (
-            in_combat and combat.turn_queue and combat.turn_index < len(combat.turn_queue)) else None)
+    current_actor = combat.turn_queue[combat.turn_index] if (
+                in_combat and combat.turn_queue and combat.turn_index < len(combat.turn_queue)) else None
+    draw_party_ui(game_surface, current_actor=current_actor)
 
     # Render Subscreens if active
     if viewing_spell_book is not None:
