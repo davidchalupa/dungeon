@@ -1,6 +1,5 @@
 from assets.items import dagger_item, longsword_item
 
-
 party_members = [
     {
         "name": "Thorne",
@@ -22,7 +21,7 @@ party_members = [
         "mp": 10,
         "max_mp": 10,
         "weapon": dagger_item,
-        "spells": ["Magic Arrow"],
+        "spells": ["Magic Arrow", "Heal"],
     },
     {
         "name": "Reece",
@@ -44,6 +43,6 @@ party_members = [
         "mp": 3,
         "max_mp": 3,
         "weapon": longsword_item,
-        "spells": ["Magic Arrow"],
+        "spells": ["Magic Arrow", "Heal"],
     },
 ]

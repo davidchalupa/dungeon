@@ -44,6 +44,7 @@ clock = pygame.time.Clock()
 # Load Fonts for UI
 font_med = pygame.font.SysFont(None, 20)
 font_large = pygame.font.SysFont(None, 24)
+font_title = pygame.font.SysFont(None, 28, bold=True)
 
 HERO_PORTRAIT_SIZE = 96
 
@@ -51,6 +52,7 @@ HERO_PORTRAIT_SIZE = 96
 # Wrap asset loading in a function to prevent parser freeze on open
 def initialize_hero_avatars():
     for hero in party_members:
+        hero["heal_flash"] = 0
         try:
             surf = pygame.image.load(hero["path"]).convert_alpha()
             hero["avatar"] = pygame.transform.scale(surf, (HERO_PORTRAIT_SIZE, HERO_PORTRAIT_SIZE))
@@ -81,8 +83,11 @@ PLAYER_RADIUS = 0.22
 CEILING_COLOR = (40, 40, 50)
 FLOOR_COLOR = (60, 50, 40)
 
+selected_hero_index = 0
 viewing_character = None
 viewing_spell_book = None
+targeting_spell = None
+spellcaster = None
 in_combat = False
 current_opponent = None
 combat_message = "An enemy blocks your path!"
@@ -113,7 +118,7 @@ def load_level(level_id):
 # ==========================================
 # PARTY UI RENDER (Seamless Bottom Bar)
 # ==========================================
-def draw_party_ui(surface, current_actor=None):
+def draw_party_ui(surface, current_actor=None, targeting_active=False):
     w = surface.get_width()
     ui_top = 546
     ui_height = VIRTUAL_HEIGHT - ui_top  # 194px seamlessly fills the bottom
@@ -134,7 +139,27 @@ def draw_party_ui(surface, current_actor=None):
 
         surface.blit(hero["avatar"], (cx, start_y))
 
-        if current_actor == hero:
+        # Healing flash effect
+        if hero.get("heal_flash", 0) > 0:
+            flash_surf = pygame.Surface((HERO_PORTRAIT_SIZE, HERO_PORTRAIT_SIZE), pygame.SRCALPHA)
+            alpha = int(140 * (hero["heal_flash"] / 30))
+            flash_surf.fill((60, 255, 120, alpha))
+            surface.blit(flash_surf, (cx, start_y))
+            pygame.draw.rect(surface, (100, 255, 150), (cx, start_y, HERO_PORTRAIT_SIZE, HERO_PORTRAIT_SIZE), 3)
+
+        # Targeting mode highlight (bright pulsing border & number badge)
+        if targeting_active:
+            pulse = int(abs(math.sin(pygame.time.get_ticks() * 0.01)) * 100) + 155
+            pygame.draw.rect(surface, (pulse, 255, pulse),
+                             (cx - 4, start_y - 4, HERO_PORTRAIT_SIZE + 8, HERO_PORTRAIT_SIZE + 8), 4)
+
+            # Badge overlay
+            badge_rect = pygame.Rect(cx + HERO_PORTRAIT_SIZE - 28, start_y + 4, 24, 24)
+            pygame.draw.rect(surface, (20, 160, 60), badge_rect)
+            pygame.draw.rect(surface, (255, 255, 255), badge_rect, 2)
+            badge_txt = font_large.render(str(i + 1), True, (255, 255, 255))
+            surface.blit(badge_txt, badge_txt.get_rect(center=badge_rect.center))
+        elif current_actor == hero:
             pygame.draw.rect(
                 surface, (255, 215, 0), (cx - 3, start_y - 3, HERO_PORTRAIT_SIZE + 6, HERO_PORTRAIT_SIZE + 6), 3
             )
@@ -224,7 +249,15 @@ def draw_spell_book(surface, hero):
 
             name_txt = font_large.render(f"[{i + 1}] {spell['name']}", True, (255, 255, 255))
             cost_txt = font_med.render(f"Cost: {spell['cost']} MP", True, (120, 180, 255))
-            dmg_txt = font_med.render(f"Damage: {spell['damage']}", True, (255, 120, 120))
+
+            if "damage" in spell:
+                stat_str = f"Damage: {spell['damage']}"
+            elif "healing" in spell:
+                stat_str = f"Heal: {spell['healing']}"
+            else:
+                stat_str = ""
+
+            dmg_txt = font_med.render(stat_str, True, (255, 120, 120))
             desc_txt = font_med.render(spell['desc'], True, (180, 180, 190))
 
             surface.blit(name_txt, (spell_box.x + 75, spell_box.y + 12))
@@ -233,7 +266,7 @@ def draw_spell_book(surface, hero):
             surface.blit(desc_txt, (spell_box.x + 75, spell_box.y + 38))
 
     footer_txt = font_med.render(
-        "Press [1] to Cast Spell  |  [ESC] Return to Combat", True, (170, 170, 170)
+        "Press [1-2] to Select Spell  |  [ESC] Return", True, (170, 170, 170)
     )
     surface.blit(footer_txt, footer_txt.get_rect(center=(bg_rect.centerx, 520)))
 
@@ -326,14 +359,59 @@ def draw_character_subscreen(surface, hero):
     surface.blit(footer_txt, footer_txt.get_rect(center=(bg_rect.centerx, 390)))
 
 
+# Helper function to select and cast spell
+def select_spell_from_book(hero, spell_idx):
+    global viewing_spell_book, targeting_spell, spellcaster, in_combat, current_opponent, combat_message, spell_effect_timer
+    spells = hero.get("spells", [])
+    if len(spells) > spell_idx:
+        s_name = spells[spell_idx]
+        spell = SPELLS[s_name]
+
+        if hero["mp"] >= spell["cost"]:
+            if s_name == "Magic Arrow":
+                if in_combat and current_opponent and current_opponent["alive"]:
+                    hero["mp"] -= spell["cost"]
+                    dmg = spell["damage"]
+                    current_opponent["hp"] = max(0, current_opponent["hp"] - dmg)
+                    spell_effect_timer = 25
+
+                    if current_opponent["hp"] <= 0:
+                        current_opponent["alive"] = False
+                        combat_message = f"Victory! {hero['name']} casts {s_name} and obliterates the {current_opponent['name']}!"
+                        in_combat = False
+                        current_opponent = None
+                    else:
+                        combat_message = f"{hero['name']} casts {s_name} for {dmg} magical damage! Next turn..."
+                        combat.turn_index += 1
+                    viewing_spell_book = None
+                else:
+                    combat_message = "Magic Arrow can only be cast in combat!"
+                    viewing_spell_book = None
+            elif s_name == "Heal":
+                viewing_spell_book = None
+                targeting_spell = "Heal"
+                spellcaster = hero
+                combat_message = f"CHOOSE TARGET FOR HEAL: Press [1-4]"
+        else:
+            combat_message = f"Not enough mana to cast {s_name}!"
+            viewing_spell_book = None
+
+
 # ==========================================
 # MAIN GAME LOOP
 # ==========================================
 running = True
 while running:
+    # Update heal flash animation timers
+    for hero in party_members:
+        if hero.get("heal_flash", 0) > 0:
+            hero["heal_flash"] -= 1
+
     current_actor = None
     if in_combat and combat.turn_queue and combat.turn_index < len(combat.turn_queue):
         current_actor = combat.turn_queue[combat.turn_index]
+    else:
+        current_actor = party_members[selected_hero_index]
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -345,32 +423,34 @@ while running:
                     window = pygame.display.set_mode((DESKTOP_WIDTH, DESKTOP_HEIGHT), pygame.FULLSCREEN)
                 else:
                     window = pygame.display.set_mode((INIT_WIDTH, INIT_HEIGHT), pygame.RESIZABLE)
+            elif targeting_spell is not None:
+                if event.key == pygame.K_ESCAPE:
+                    targeting_spell = None
+                    spellcaster = None
+                    combat_message = "Spell targeting cancelled."
+                elif event.key in (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4):
+                    target_idx = event.key - pygame.K_1
+                    if target_idx < len(party_members):
+                        target_hero = party_members[target_idx]
+                        spell = SPELLS[targeting_spell]
+
+                        spellcaster["mp"] -= spell["cost"]
+                        target_hero["hp"] = min(target_hero["max_hp"], target_hero["hp"] + spell["healing"])
+                        target_hero["heal_flash"] = 30
+
+                        combat_message = f"{spellcaster['name']} casts Heal on {target_hero['name']} for {spell['healing']} HP!"
+                        if in_combat:
+                            combat.turn_index += 1
+
+                        targeting_spell = None
+                        spellcaster = None
             elif viewing_spell_book is not None:
                 if event.key == pygame.K_ESCAPE:
                     viewing_spell_book = None
                 elif event.key == pygame.K_1:
-                    hero = viewing_spell_book
-                    spells = hero.get("spells", [])
-                    if spells and current_opponent and current_opponent["alive"]:
-                        spell = SPELLS[spells[0]]
-                        if hero["mp"] >= spell["cost"]:
-                            hero["mp"] -= spell["cost"]
-                            dmg = spell["damage"]
-                            current_opponent["hp"] = max(0, current_opponent["hp"] - dmg)
-                            spell_effect_timer = 25
-
-                            if current_opponent["hp"] <= 0:
-                                current_opponent["alive"] = False
-                                combat_message = f"Victory! {hero['name']} casts {spell['name']} and obliterates the {current_opponent['name']}!"
-                                in_combat = False
-                                current_opponent = None
-                            else:
-                                combat_message = f"{hero['name']} casts {spell['name']} for {dmg} magical damage! Next turn..."
-                                combat.turn_index += 1
-                            viewing_spell_book = None
-                        else:
-                            combat_message = f"Not enough mana to cast {spell['name']}!"
-                            viewing_spell_book = None
+                    select_spell_from_book(viewing_spell_book, 0)
+                elif event.key == pygame.K_2:
+                    select_spell_from_book(viewing_spell_book, 1)
             elif viewing_character is not None:
                 if event.key == pygame.K_ESCAPE:
                     viewing_character = None
@@ -383,15 +463,21 @@ while running:
                 elif event.key == pygame.K_4:
                     viewing_character = 3
             else:
-                if not in_combat:
+                if not in_combat and targeting_spell is None:
                     if event.key == pygame.K_1:
-                        viewing_character = 0
+                        selected_hero_index = 0
                     elif event.key == pygame.K_2:
-                        viewing_character = 1
+                        selected_hero_index = 1
                     elif event.key == pygame.K_3:
-                        viewing_character = 2
+                        selected_hero_index = 2
                     elif event.key == pygame.K_4:
-                        viewing_character = 3
+                        selected_hero_index = 3
+                    elif event.key == pygame.K_c:
+                        hero = party_members[selected_hero_index]
+                        if hero.get("spells"):
+                            viewing_spell_book = hero
+                        else:
+                            combat_message = f"{hero['name']} has no spells!"
 
                 if in_combat and current_opponent and current_opponent["alive"]:
                     if current_actor and current_actor != current_opponent:
@@ -466,7 +552,7 @@ while running:
         else:
             combat.start_combat_round(current_opponent)
 
-    if viewing_character is None and viewing_spell_book is None and not in_combat:
+    if viewing_character is None and viewing_spell_book is None and targeting_spell is None and not in_combat:
         keys = pygame.key.get_pressed()
         if keys[pygame.K_UP]:
             newX = posX + dirX * MOVE_SPEED
@@ -498,7 +584,7 @@ while running:
             planeX = planeX * math.cos(-ROT_SPEED) - planeY * math.sin(-ROT_SPEED)
             planeY = oldPlaneX * math.sin(-ROT_SPEED) + planeY * math.cos(-ROT_SPEED)
 
-    if viewing_character is None and viewing_spell_book is None and not in_combat:
+    if viewing_character is None and viewing_spell_book is None and targeting_spell is None and not in_combat:
         in_combat, current_opponent, dirX, dirY, planeX, planeY, combat_message = combat.check_enemy_encounters(
             posX, posY, dirX, dirY, planeX, planeY, opponents, in_combat
         )
@@ -670,7 +756,7 @@ while running:
     if attack_flash_timer > 0:
         attack_flash_timer -= 1
 
-    # Spell Visual Effect Rendering on Screen
+    # Spell Visual Effect Rendering on Screen (Magic Arrow only)
     if spell_effect_timer > 0:
         spell_overlay = pygame.Surface((RENDER_WIDTH, RENDER_HEIGHT), pygame.SRCALPHA)
         spell_overlay.fill((80, 160, 255, 50 + spell_effect_timer * 4))
@@ -687,8 +773,21 @@ while running:
     # ==========================================
     game_surface.blit(screen, (0, 0))
 
+    # Draw Targeting Modal Banner if targeting is active
+    if targeting_spell is not None:
+        banner_rect = pygame.Rect(40, 150, VIRTUAL_WIDTH - 80, 70)
+        pygame.draw.rect(game_surface, (10, 40, 20), banner_rect)
+        pygame.draw.rect(game_surface, (50, 255, 120), banner_rect, 3)
+
+        banner_title = font_title.render("✨ CHOOSE PARTY MEMBER FOR HEAL ✨", True, (100, 255, 150))
+        banner_sub = font_med.render("Press party keys [1], [2], [3], or [4]  |  [ESC] to Cancel", True,
+                                     (220, 240, 220))
+
+        game_surface.blit(banner_title, banner_title.get_rect(center=(banner_rect.centerx, banner_rect.y + 22)))
+        game_surface.blit(banner_sub, banner_sub.get_rect(center=(banner_rect.centerx, banner_rect.y + 48)))
+
     # Draw Combat Overlay if active
-    if in_combat and current_opponent and current_opponent["alive"]:
+    elif in_combat and current_opponent and current_opponent["alive"]:
         combat_box = pygame.Rect(20, 40, VIRTUAL_WIDTH - 40, 80)
         pygame.draw.rect(game_surface, (15, 15, 20), combat_box)
         pygame.draw.rect(game_surface, (200, 50, 50), combat_box, 2)
@@ -714,6 +813,14 @@ while running:
         game_surface.blit(enemy_lbl, (combat_box.x + 15, combat_box.y + 10))
         game_surface.blit(msg_lbl, (combat_box.x + 15, combat_box.y + 35))
         game_surface.blit(action_lbl, (combat_box.x + 15, combat_box.y + 55))
+    else:
+        # Non-combat status message / guide overlay
+        status_box = pygame.Rect(20, 40, VIRTUAL_WIDTH - 40, 36)
+        pygame.draw.rect(game_surface, (15, 15, 20), status_box)
+        pygame.draw.rect(game_surface, (80, 80, 100), status_box, 1)
+        status_lbl = font_med.render(f"Status: {combat_message}  |  [1-4] Select Hero  |  [C] Open Spells", True,
+                                     (220, 220, 220))
+        game_surface.blit(status_lbl, (status_box.x + 12, status_box.y + 8))
 
     # Draw Level Title Overlay & Dynamic Switch hints
     fullscreen_text = "[F11] Exit Fullscreen" if is_fullscreen else "[F11] Fullscreen"
@@ -724,10 +831,12 @@ while running:
     )
     game_surface.blit(txt, (10, 10))
 
-    # Draw Party UI at the bottom seamlessly with active character frame
-    current_actor = combat.turn_queue[combat.turn_index] if (
-                in_combat and combat.turn_queue and combat.turn_index < len(combat.turn_queue)) else None
-    draw_party_ui(game_surface, current_actor=current_actor)
+    # Draw Party UI at the bottom seamlessly with active character frame or target highlights
+    if in_combat and combat.turn_queue and combat.turn_index < len(combat.turn_queue):
+        current_actor = combat.turn_queue[combat.turn_index]
+    else:
+        current_actor = party_members[selected_hero_index]
+    draw_party_ui(game_surface, current_actor=current_actor, targeting_active=(targeting_spell is not None))
 
     # Render Subscreens if active
     if viewing_spell_book is not None:
