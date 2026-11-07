@@ -14,14 +14,30 @@ from engine.procedural_sprites import get_cached_procedural_goblin_ghost
 # Initialize Pygame
 pygame.init()
 
-# Window Display Resolution (Extended height to 740 to fully fit the bottom UI panel & MP bars)
-WINDOW_WIDTH, WINDOW_HEIGHT = 840, 740
-window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+# Virtual Logical Resolution (Maintains pristine UI and raycaster layout)
+VIRTUAL_WIDTH, VIRTUAL_HEIGHT = 840, 740
+RENDER_WIDTH, RENDER_HEIGHT = 840, 546
+
+# Get desktop display info for responsive sizing and full-screen switching
+info = pygame.display.Info()
+DESKTOP_WIDTH = info.current_w
+DESKTOP_HEIGHT = info.current_h
+
+# Initial window size maintaining the exact 840x740 aspect ratio
+INIT_HEIGHT = min(740, int(DESKTOP_HEIGHT * 0.8))
+INIT_WIDTH = int(INIT_HEIGHT * (VIRTUAL_WIDTH / VIRTUAL_HEIGHT))
+
+is_fullscreen = False
+
+# Set up resizable display window
+window = pygame.display.set_mode((INIT_WIDTH, INIT_HEIGHT), pygame.RESIZABLE)
 pygame.display.set_caption("Dungeon Engine - High Speed & Bright")
 
-# Optimized 3D Rendering Surface (Matched to window width)
-RENDER_WIDTH, RENDER_HEIGHT = 840, 546
+# Optimized 3D Rendering Surface
 screen = pygame.Surface((RENDER_WIDTH, RENDER_HEIGHT))
+
+# Virtual Master Surface for entire UI & Game View
+game_surface = pygame.Surface((VIRTUAL_WIDTH, VIRTUAL_HEIGHT))
 
 clock = pygame.time.Clock()
 
@@ -95,21 +111,30 @@ def load_level(level_id):
 
 
 # ==========================================
-# PARTY UI RENDER (Vertically Centered Bottom Bar)
+# PARTY UI RENDER (Seamless Bottom Bar)
 # ==========================================
 def draw_party_ui(surface, current_actor=None):
-    bar_rect = pygame.Rect(0, 580, WINDOW_WIDTH, 160)
+    w = surface.get_width()
+    ui_top = 546
+    ui_height = VIRTUAL_HEIGHT - ui_top  # 194px seamlessly fills the bottom
+    bar_rect = pygame.Rect(0, ui_top, w, ui_height)
     pygame.draw.rect(surface, (20, 20, 25), bar_rect)
-    pygame.draw.line(surface, (50, 50, 60), (0, 580), (WINDOW_WIDTH, 580), 2)
+    pygame.draw.line(surface, (50, 50, 60), (0, ui_top), (w, ui_top), 2)
 
     spacing = 160
-    start_x = (WINDOW_WIDTH - (len(party_members) * spacing)) / 2
+    start_x = (w - (len(party_members) * spacing)) / 2
 
-    total_content_height = 138
-    start_y = 580 + (160 - total_content_height) // 2
+    # Total content height: portrait (96) + gap (6) + name (16) + gap (6) + HP bar (5) + gap (4) + MP bar (5) = 138px
+    total_content_height = HERO_PORTRAIT_SIZE + 6 + 16 + 6 + 5 + 4 + 5
+    start_y = ui_top + (ui_height - total_content_height) // 2 + 6
+
+    # Offset to center the 96px portrait inside its 160px slot
+    portrait_offset = (spacing - HERO_PORTRAIT_SIZE) // 2
 
     for i, hero in enumerate(party_members):
-        cx = start_x + i * spacing
+        slot_x = start_x + i * spacing
+        cx = slot_x + portrait_offset  # Centered X position for portrait
+
         surface.blit(hero["avatar"], (cx, start_y))
 
         if current_actor == hero:
@@ -123,7 +148,7 @@ def draw_party_ui(surface, current_actor=None):
             True,
             (230, 230, 230) if hero["hp"] > 0 else (120, 120, 120),
         )
-        name_rect = name_txt.get_rect(midtop=(cx + HERO_PORTRAIT_SIZE / 2, name_y))
+        name_rect = name_txt.get_rect(midtop=(slot_x + spacing / 2, name_y))
         surface.blit(name_txt, name_rect)
 
         hp_bar_width = HERO_PORTRAIT_SIZE - 10
@@ -159,7 +184,8 @@ def draw_party_ui(surface, current_actor=None):
 # SPELL BOOK SUBSCREEN RENDER
 # ==========================================
 def draw_spell_book(surface, hero):
-    bg_rect = pygame.Rect(0, 0, WINDOW_WIDTH, 580)
+    w = surface.get_width()
+    bg_rect = pygame.Rect(0, 0, w, 580)
     pygame.draw.rect(surface, (20, 20, 35), bg_rect)
     pygame.draw.rect(surface, (100, 140, 220), bg_rect, 3)
 
@@ -219,7 +245,8 @@ def draw_spell_book(surface, hero):
 # CHARACTER SUBSCREEN RENDER
 # ==========================================
 def draw_character_subscreen(surface, hero):
-    bg_rect = pygame.Rect(0, 0, WINDOW_WIDTH, 580)
+    w = surface.get_width()
+    bg_rect = pygame.Rect(0, 0, w, 580)
     pygame.draw.rect(surface, (22, 22, 28), bg_rect)
     pygame.draw.rect(surface, (160, 140, 90), bg_rect, 3)
 
@@ -283,7 +310,13 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.KEYDOWN:
-            if viewing_spell_book is not None:
+            if event.key == pygame.K_F11:
+                is_fullscreen = not is_fullscreen
+                if is_fullscreen:
+                    window = pygame.display.set_mode((DESKTOP_WIDTH, DESKTOP_HEIGHT), pygame.FULLSCREEN)
+                else:
+                    window = pygame.display.set_mode((INIT_WIDTH, INIT_HEIGHT), pygame.RESIZABLE)
+            elif viewing_spell_book is not None:
                 if event.key == pygame.K_ESCAPE:
                     viewing_spell_book = None
                 elif event.key == pygame.K_1:
@@ -620,14 +653,16 @@ while running:
         )
         spell_effect_timer -= 1
 
-    # OPTIMIZED: Zero-Allocation Destination Scaling
-    pygame.transform.smoothscale(screen, (WINDOW_WIDTH, WINDOW_HEIGHT), window)
+    # ==========================================
+    # ASSEMBLE ON VIRTUAL MASTER SURFACE (840x740)
+    # ==========================================
+    game_surface.blit(screen, (0, 0))
 
     # Draw Combat Overlay if active
     if in_combat and current_opponent and current_opponent["alive"]:
-        combat_box = pygame.Rect(20, 40, WINDOW_WIDTH - 40, 80)
-        pygame.draw.rect(window, (15, 15, 20), combat_box)
-        pygame.draw.rect(window, (200, 50, 50), combat_box, 2)
+        combat_box = pygame.Rect(20, 40, VIRTUAL_WIDTH - 40, 80)
+        pygame.draw.rect(game_surface, (15, 15, 20), combat_box)
+        pygame.draw.rect(game_surface, (200, 50, 50), combat_box, 2)
 
         enemy_lbl = font_large.render(
             f"FIGHTING: {current_opponent['name']} (HP: {current_opponent['hp']}/{current_opponent['max_hp']})",
@@ -647,27 +682,52 @@ while running:
             "Commands: [A] Attack  |  [C] Spell Book  |  [W] Wait", True, (200, 200, 100)
         )
 
-        window.blit(enemy_lbl, (combat_box.x + 15, combat_box.y + 10))
-        window.blit(msg_lbl, (combat_box.x + 15, combat_box.y + 35))
-        window.blit(action_lbl, (combat_box.x + 15, combat_box.y + 55))
+        game_surface.blit(enemy_lbl, (combat_box.x + 15, combat_box.y + 10))
+        game_surface.blit(msg_lbl, (combat_box.x + 15, combat_box.y + 35))
+        game_surface.blit(action_lbl, (combat_box.x + 15, combat_box.y + 55))
 
     # Draw Level Title Overlay & Switch hints
     txt = font_med.render(
-        f"Level: {level_data['name']} | [5/6] Switch Level",
+        f"Level: {level_data['name']} | [5/6] Switch Level | [F11] Fullscreen",
         True,
         (240, 240, 240),
     )
-    window.blit(txt, (10, 10))
+    game_surface.blit(txt, (10, 10))
 
-    # Draw Party UI at the bottom with active character frame
-    draw_party_ui(window, current_actor=combat.turn_queue[combat.turn_index] if (
-                in_combat and combat.turn_queue and combat.turn_index < len(combat.turn_queue)) else None)
+    # Draw Party UI at the bottom seamlessly with active character frame
+    draw_party_ui(game_surface, current_actor=combat.turn_queue[combat.turn_index] if (
+            in_combat and combat.turn_queue and combat.turn_index < len(combat.turn_queue)) else None)
 
     # Render Subscreens if active
     if viewing_spell_book is not None:
-        draw_spell_book(window, viewing_spell_book)
+        draw_spell_book(game_surface, viewing_spell_book)
     elif viewing_character is not None:
-        draw_character_subscreen(window, party_members[viewing_character])
+        draw_character_subscreen(game_surface, party_members[viewing_character])
+
+    # ==========================================
+    # ASPECT-RATIO PRESERVED SCALING & CENTERING
+    # ==========================================
+    window.fill((0, 0, 0))  # Fill letterbox / pillarbox borders with black
+
+    win_w, win_h = window.get_size()
+    virtual_aspect = VIRTUAL_WIDTH / VIRTUAL_HEIGHT
+    window_aspect = win_w / win_h if win_h > 0 else virtual_aspect
+
+    if window_aspect > virtual_aspect:
+        # Window is wider than game -> Pillarboxing (black bars on left and right)
+        scaled_h = win_h
+        scaled_w = int(scaled_h * virtual_aspect)
+        scale_x = (win_w - scaled_w) // 2
+        scale_y = 0
+    else:
+        # Window is taller than game -> Letterboxing (black bars on top and bottom)
+        scaled_w = win_w
+        scaled_h = int(scaled_w / virtual_aspect)
+        scale_x = 0
+        scale_y = (win_h - scaled_h) // 2
+
+    scaled_output = pygame.transform.smoothscale(game_surface, (scaled_w, scaled_h))
+    window.blit(scaled_output, (scale_x, scale_y))
 
     pygame.display.flip()
     clock.tick(60)

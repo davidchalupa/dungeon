@@ -7,8 +7,11 @@ def get_cached_procedural_goblin_ghost(width, height, body_color, breath):
     target_w = max(10, width)
     target_h = max(10, height)
 
-    qw = max(10, (target_w + 1) // 2 * 2)
-    qh = max(10, (target_h + 1) // 2 * 2)
+    # If you want full resolution sprites (recommended for sharp visuals):
+    qw = target_w
+    qh = target_h
+
+    # (Alternatively, if you wanted half-resolution for performance, use: qw = max(10, target_w // 2))
 
     key = (qw, qh, body_color, breath)
     if key in goblin_ghost_surface_cache:
@@ -47,8 +50,10 @@ def get_cached_procedural_goblin_ghost(width, height, body_color, breath):
     pygame.draw.polygon(base_surf, head_color, ear_right)
 
     inner_color = (max(0, body_color[0] - 50), max(0, body_color[1] - 50), max(0, body_color[2] - 50), 190)
-    pygame.draw.polygon(base_surf, inner_color, [(cx - 38, head_center_y - 6), (cx - 65, head_center_y - 30), (cx - 40, head_center_y + 8)])
-    pygame.draw.polygon(base_surf, inner_color, [(cx + 38, head_center_y - 6), (cx + 65, head_center_y - 30), (cx + 40, head_center_y + 8)])
+    pygame.draw.polygon(base_surf, inner_color,
+                        [(cx - 38, head_center_y - 6), (cx - 65, head_center_y - 30), (cx - 40, head_center_y + 8)])
+    pygame.draw.polygon(base_surf, inner_color,
+                        [(cx + 38, head_center_y - 6), (cx + 65, head_center_y - 30), (cx + 40, head_center_y + 8)])
 
     eye_y = head_center_y - 4
     eye_offset = 17
