@@ -241,12 +241,33 @@ def draw_spell_book(surface, hero):
 
             icon_rect = pygame.Rect(spell_box.x + 12, spell_box.y + 12, 46, 46)
             pygame.draw.rect(surface, (40, 70, 130), icon_rect)
-            pygame.draw.line(surface, (200, 240, 255), (icon_rect.left + 10, icon_rect.centery),
-                             (icon_rect.right - 10, icon_rect.centery), 3)
-            pygame.draw.line(surface, (200, 240, 255), (icon_rect.right - 16, icon_rect.centery - 8),
-                             (icon_rect.right - 10, icon_rect.centery), 3)
-            pygame.draw.line(surface, (200, 240, 255), (icon_rect.right - 16, icon_rect.centery + 8),
-                             (icon_rect.right - 10, icon_rect.centery), 3)
+            if s_name == "Magic Arrow":
+                pygame.draw.line(surface, (200, 240, 255), (icon_rect.left + 10, icon_rect.centery),
+                                 (icon_rect.right - 10, icon_rect.centery), 3)
+                pygame.draw.line(surface, (200, 240, 255), (icon_rect.right - 16, icon_rect.centery - 8),
+                                 (icon_rect.right - 10, icon_rect.centery), 3)
+                pygame.draw.line(surface, (200, 240, 255), (icon_rect.right - 16, icon_rect.centery + 8),
+                                 (icon_rect.right - 10, icon_rect.centery), 3)
+            elif s_name == "Heal":
+                # Draw clear red medical/pharmacy cross for Heal spell
+                pygame.draw.rect(surface, (40, 70, 130), icon_rect)
+
+                center_x = icon_rect.centerx
+                center_y = icon_rect.centery
+
+                # A subtle glow effect
+                pygame.draw.line(surface, (255, 180, 180),
+                                 (center_x - 15, center_y + 1),
+                                 (center_x + 17, center_y + 1), width=2)
+                # Vertical bar - extends up/down from center
+                pygame.draw.line(surface, (255, 80, 80),
+                                 (center_x, center_y - 16),
+                                 (center_x, center_y + 16), width=3)
+
+                # Horizontal bar - extends left/right from center
+                pygame.draw.line(surface, (255, 80, 80),
+                                 (center_x - 16, center_y),
+                                 (center_x + 16, center_y), width=3)
 
             name_txt = font_large.render(f"[{i + 1}] {spell['name']}", True, (255, 255, 255))
             cost_txt = font_med.render(f"Cost: {spell['cost']} MP", True, (120, 180, 255))
