@@ -90,7 +90,7 @@ targeting_spell = None
 spellcaster = None
 in_combat = False
 current_opponent = None
-combat_message = "An enemy blocks your path!"
+combat_message = "Exploring the dungeon..."
 attack_flash_timer = 0
 spell_effect_timer = 0
 
@@ -98,7 +98,7 @@ spell_effect_timer = 0
 def load_level(level_id):
     global current_level_id, level_data, WORLD_MAP
     global active_texture_id, posX, posY
-    global dirX, dirY, planeX, planeY, opponents, in_combat, current_opponent
+    global dirX, dirY, planeX, planeY, opponents, in_combat, current_opponent, combat_message
 
     current_level_id = level_id
     level_data = LEVELS[level_id]
@@ -113,6 +113,7 @@ def load_level(level_id):
     opponents = [dict(o) for o in level_data["opponents"]]
     in_combat = False
     current_opponent = None
+    combat_message = "Exploring the dungeon..."
 
 
 # ==========================================
@@ -584,11 +585,15 @@ while running:
             planeX = planeX * math.cos(-ROT_SPEED) - planeY * math.sin(-ROT_SPEED)
             planeY = oldPlaneX * math.sin(-ROT_SPEED) + planeY * math.cos(-ROT_SPEED)
 
+    # Check for enemy encounters only when exploring
     if viewing_character is None and viewing_spell_book is None and targeting_spell is None and not in_combat:
-        in_combat, current_opponent, dirX, dirY, planeX, planeY, combat_message = combat.check_enemy_encounters(
+        enc_in_combat, enc_opp, dirX, dirY, planeX, planeY, enc_msg = combat.check_enemy_encounters(
             posX, posY, dirX, dirY, planeX, planeY, opponents, in_combat
         )
-        if current_opponent:
+        if enc_in_combat and enc_opp:
+            in_combat = True
+            current_opponent = enc_opp
+            combat_message = enc_msg
             combat.start_combat_round(current_opponent)
 
     # Render Ceiling and Floor on the 3D surface
@@ -779,7 +784,7 @@ while running:
         pygame.draw.rect(game_surface, (10, 40, 20), banner_rect)
         pygame.draw.rect(game_surface, (50, 255, 120), banner_rect, 3)
 
-        banner_title = font_title.render("✨ CHOOSE PARTY MEMBER FOR HEAL ✨", True, (100, 255, 150))
+        banner_title = font_title.render("✨ CHOOSE TARGET FOR HEAL ✨", True, (100, 255, 150))
         banner_sub = font_med.render("Press party keys [1], [2], [3], or [4]  |  [ESC] to Cancel", True,
                                      (220, 240, 220))
 
