@@ -706,7 +706,7 @@ while running:
         deltaDistX = abs(1 / rayDirX) if rayDirX != 0 else 1e30
         deltaDistY = abs(1 / rayDirY) if rayDirY != 0 else 1e30
 
-        hit = 0
+        hit = 0  # 0 = searching, 1 = solid wall hit (1), 2 = open sea / horizon
         side = 0
 
         if rayDirX < 0:
@@ -733,19 +733,34 @@ while running:
                 mapY += stepY
                 side = 1
 
-            if combat.is_wall(mapX, mapY):
+            # Check map boundaries
+            if mapX < 0 or mapX >= len(WORLD_MAP[0]) or mapY < 0 or mapY >= len(WORLD_MAP):
+                hit = 2
+                break
+
+            cell_type = WORLD_MAP[mapY][mapX]
+            if cell_type == 1:
+                hit = 1  # Solid wall hits stop the ray
+            elif cell_type == 2:
+                pass  # Water cell (2): ray passes right through so FloorCaster renders the water!
+            elif combat.is_wall(mapX, mapY):
                 hit = 1
 
-        if side == 0:
-            perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX
-            wallX = posY + perpWallDist * rayDirY
-        else:
-            perpWallDist = (mapY - posY + (1 - stepY) / 2) / rayDirY
-            wallX = posX + perpWallDist * rayDirX
+        if hit == 1:
+            if side == 0:
+                perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX
+                wallX = posY + perpWallDist * rayDirY
+            else:
+                perpWallDist = (mapY - posY + (1 - stepY) / 2) / rayDirY
+                wallX = posX + perpWallDist * rayDirX
 
-        wallX -= math.floor(wallX)
+            wallX -= math.floor(wallX)
+        else:
+            perpWallDist = float('inf')  # Infinite distance so sprites over water render properly
+            wallX = 0
 
         ray_cache.append({
+            "hit": hit,
             "perpWallDist": perpWallDist,
             "side": side,
             "wallX": wallX,
@@ -757,6 +772,9 @@ while running:
     active_strips = renderer.TEXTURE_STRIPS[active_texture_id]
     for x in range(RENDER_WIDTH):
         data = ray_cache[x]
+        if data["hit"] != 1:
+            continue  # Skip drawing walls for water/open sea (hit == 2 or 0)
+
         perpWallDist = data["perpWallDist"]
         side = data["side"]
         wallX = data["wallX"]

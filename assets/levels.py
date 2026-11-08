@@ -102,8 +102,8 @@ LEVELS = {
         ],
     },
     4: {
-        "name": "Level 4: The Coastal Outpost",
-        "texture_id": 2,  # organic rock walls (same as level 3)
+        "name": "Level 4: The Island Outpost",
+        "texture_id": 2,  # organic rock walls
         "floor_texture_id": 1,  # grass fills walkable cells
         "sky": True,  # gradient sky instead of ceiling color
         "map": [
@@ -129,8 +129,8 @@ LEVELS = {
         "opponents": [
             {
                 "name": "Goblin Ghost",
-                "x": 5.0,
-                "y": 3.0,
+                "x": 5.5,
+                "y": 6.0,
                 "hp": 25,
                 "max_hp": 25,
                 "min_atk": 2,
@@ -139,12 +139,12 @@ LEVELS = {
             },
             {
                 "name": "Goblin Ghost",
-                "x": 9.0,
-                "y": 4.0,
-                "hp": 30,
-                "max_hp": 30,
+                "x": 9.5,
+                "y": 8.5,
+                "hp": 25,
+                "max_hp": 25,
                 "min_atk": 2,
-                "max_atk": 6,
+                "max_atk": 5,
                 "alive": True,
             },
         ],
