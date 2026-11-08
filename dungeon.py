@@ -4,7 +4,7 @@ import sys
 import pygame
 
 import numpy as np
-from engine.floor import FloorCaster, surface_to_array, make_sky
+from engine.floor import FloorCaster, surface_to_array, make_sky, build_floor_luts
 
 from engine.textures import FLOOR_TEXTURES
 
@@ -113,12 +113,16 @@ combat_message = "Exploring the dungeon..."
 attack_flash_timer = 0
 spell_effect_timer = 0
 
+floor_kind_lut = None
+floor_luts = []
+
 
 def load_level(level_id):
     global current_level_id, level_data, WORLD_MAP
     global active_texture_id, posX, posY
     global dirX, dirY, planeX, planeY, opponents, in_combat, current_opponent, combat_message
     global floor_map_array, floor_tex_arrays
+    global floor_kind_lut, floor_luts
 
     current_level_id = level_id
     level_data = LEVELS[level_id]
@@ -142,6 +146,11 @@ def load_level(level_id):
         floor_tex_arrays[0] = FLOOR_ARRAYS[fid]
     if any(2 in row for row in WORLD_MAP):
         floor_tex_arrays[2] = FLOOR_ARRAYS[2]
+
+    if floor_tex_arrays:
+        floor_kind_lut, floor_luts = build_floor_luts(np.array(WORLD_MAP), floor_tex_arrays)
+    else:
+        floor_kind_lut, floor_luts = None, []
 
 
 # ==========================================
@@ -663,17 +672,19 @@ while running:
     horizon = RENDER_HEIGHT // 2
 
     if level_data.get("sky"):
-        screen.blit(sky_surface, (0, 0))                      # covers rows 0..horizon
+        screen.blit(sky_surface, (0, 0))
     else:
         screen.fill(CEILING_COLOR, (0, 0, RENDER_WIDTH, horizon + 1))
 
-    if floor_caster is not None and floor_tex_arrays:
-        tex_arrays = {
-            cell: frames[(pygame.time.get_ticks() // 250) % len(frames)]
-            for cell, frames in floor_tex_arrays.items()
-        }
-        floor_caster.draw(screen, posX, posY, dirX, dirY, planeX, planeY,
-                          floor_map_array, tex_arrays)
+    if floor_luts:
+        lut = floor_luts[(pygame.time.get_ticks() // 250) % len(floor_luts)]
+        floor_caster.draw(posX, posY, dirX, dirY, planeX, planeY,
+                          floor_kind_lut, lut)
+        scaled = pygame.transform.scale(
+            floor_caster.band,
+            (RENDER_WIDTH, RENDER_HEIGHT - horizon - 1),
+        )
+        screen.blit(scaled, (0, horizon + 1))
     else:
         screen.fill(FLOOR_COLOR, (0, horizon + 1, RENDER_WIDTH, RENDER_HEIGHT - horizon - 1))
 
