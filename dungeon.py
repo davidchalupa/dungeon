@@ -36,7 +36,7 @@ is_fullscreen = False
 
 # Set up resizable display window
 window = pygame.display.set_mode((INIT_WIDTH, INIT_HEIGHT), pygame.RESIZABLE)
-pygame.display.set_caption("Dungeon Engine - High Speed & Bright")
+pygame.display.set_caption("Dungeon Engine")
 
 # Optimized 3D Rendering Surface
 screen = pygame.Surface((RENDER_WIDTH, RENDER_HEIGHT))
@@ -438,7 +438,7 @@ def select_spell_from_book(hero, spell_idx):
 
                     if current_opponent["hp"] <= 0:
                         current_opponent["alive"] = False
-                        combat_message = f"Victory! {hero['name']} casts {s_name} and obliterates the {current_opponent['name']}!"
+                        combat_message = f"Victory! {hero['name']} casts {s_name} and defeats the {current_opponent['name']}!"
                         in_combat = False
                         current_opponent = None
                     else:
@@ -936,7 +936,7 @@ while running:
     # Draw Level Title Overlay & Dynamic Switch hints
     fullscreen_text = "[F11] Exit Fullscreen" if is_fullscreen else "[F11] Fullscreen"
     txt = font_med.render(
-        f"Level: {level_data['name']} | [F1/F2] Switch Level | {fullscreen_text}",
+        f"{level_data['name']} | [F1/F2] Switch Level | {fullscreen_text}",
         True,
         (240, 240, 240),
     )
