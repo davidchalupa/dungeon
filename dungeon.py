@@ -4,7 +4,7 @@ import sys
 import pygame
 
 import numpy as np
-from engine.floor import FloorCaster, surface_to_array, make_sky, build_floor_luts
+from engine.floor import FloorCaster, surface_to_array, make_sky, build_floor_luts, draw_sun
 
 from engine.textures import FLOOR_TEXTURES
 
@@ -673,6 +673,7 @@ while running:
 
     if level_data.get("sky"):
         screen.blit(sky_surface, (0, 0))
+        draw_sun(screen, dirX, dirY, planeX, planeY)
     else:
         screen.fill(CEILING_COLOR, (0, 0, RENDER_WIDTH, horizon + 1))
 

@@ -1,5 +1,6 @@
 import numpy as np
 import pygame
+import math
 
 TEX_SIZE = 256
 TEX_FLAT = TEX_SIZE * TEX_SIZE
@@ -17,6 +18,36 @@ def make_sky(width, height, top=(104, 158, 235), bottom=(196, 224, 248)):
         sky.fill(tuple(int(top[i] + (bottom[i] - top[i]) * t) for i in range(3)),
                  (0, y, width, 1))
     return sky
+
+SUN_AZIMUTH = math.radians(135)   # world angle of the sun, tune to taste
+SUN_HEIGHT = 0.30                  # fraction of sky band height, 0 = horizon
+
+
+def draw_sun(surface, dir_x, dir_y, plane_x, plane_y):
+    """Sun at a fixed world azimuth: slides across the sky as you turn.
+    Self-contained: derives screen geometry from `surface`, so it works
+    from any module."""
+    sun_x = math.cos(SUN_AZIMUTH)
+    sun_y = math.sin(SUN_AZIMUTH)
+
+    inv_det = 1.0 / (plane_x * dir_y - dir_x * plane_y)
+    transform_x = inv_det * (dir_y * sun_x - dir_x * sun_y)
+    transform_y = inv_det * (-plane_y * sun_x + plane_x * sun_y)
+
+    if transform_y <= 0.1:
+        return  # behind the camera, nothing to draw
+
+    w = surface.get_width()
+    sky_band_height = surface.get_height() // 2 + 1  # same size as make_sky output
+
+    cx = int((w / 2) * (1 + transform_x / transform_y))
+    cy = int(sky_band_height * SUN_HEIGHT)
+
+    if cx < -40 or cx > w + 40:
+        return  # outside the field of view
+
+    pygame.draw.circle(surface, (255, 240, 180), (cx, cy), 26)
+    pygame.draw.circle(surface, (255, 250, 215), (cx, cy), 18)
 
 
 def build_floor_luts(map_array, tex_arrays):
