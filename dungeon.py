@@ -4,7 +4,7 @@ import sys
 import pygame
 
 import numpy as np
-from engine.floor import FloorCaster, surface_to_array, make_sky, build_floor_luts, draw_sun
+from engine.floor_and_sky import FloorCaster, surface_to_array, make_sky, build_floor_luts, draw_sun
 
 from engine.textures import FLOOR_TEXTURES
 
@@ -130,7 +130,7 @@ def load_level(level_id):
     combat.WORLD_MAP = WORLD_MAP  # Keep combat module synced
     active_texture_id = level_data["texture_id"]
 
-    posX, posY = 1.5, 1.5
+    posX, posY = level_data["init_pos"]["x"], level_data["init_pos"]["y"]
     dirX, dirY = -1.0, 0.0
     planeX, planeY = 0.0, 0.4
 
@@ -595,7 +595,9 @@ while running:
                             load_level(2)
                         elif event.key == pygame.K_F3:
                             load_level(3)
-                        elif event.key == pygame.K_ESCAPE:
+                        elif event.key == pygame.K_F4:
+                            load_level(4)
+                    elif event.key == pygame.K_ESCAPE:
                             running = False
 
     if in_combat and current_opponent and current_opponent["alive"]:
