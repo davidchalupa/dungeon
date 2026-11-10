@@ -27,6 +27,8 @@ LEVELS = {
                 "max_hp": 25,
                 "min_atk": 5,
                 "max_atk": 8,
+                "min_def": 1,
+                "max_def": 2,
                 "alive": True,
             },
             {
@@ -37,6 +39,8 @@ LEVELS = {
                 "max_hp": 25,
                 "min_atk": 5,
                 "max_atk": 8,
+                "min_def": 1,
+                "max_def": 2,
                 "alive": True,
             },
         ],
@@ -66,15 +70,17 @@ LEVELS = {
                 "max_hp": 25,
                 "min_atk": 5,
                 "max_atk": 8,
+                "min_def": 1,
+                "max_def": 2,
                 "alive": True,
             }
         ],
     },
     3: {
         "name": "Level 3: The Sunlit Clearing",
-        "texture_id": 2,  # organic rock walls (existing wall set)
-        "floor_texture_id": 1,  # grass fills walkable (0) cells
-        "sky": True,  # gradient sky instead of ceiling color
+        "texture_id": 2,
+        "floor_texture_id": 1,
+        "sky": True,
         "map": [
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
             [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -97,15 +103,17 @@ LEVELS = {
                 "max_hp": 25,
                 "min_atk": 5,
                 "max_atk": 8,
+                "min_def": 1,
+                "max_def": 2,
                 "alive": True,
             }
         ],
     },
     4: {
         "name": "Level 4: The Island Outpost",
-        "texture_id": 2,  # organic rock walls
-        "floor_texture_id": 1,  # grass fills walkable cells
-        "sky": True,  # gradient sky instead of ceiling color
+        "texture_id": 2,
+        "floor_texture_id": 1,
+        "sky": True,
         "map": [
             [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
             [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
@@ -135,6 +143,8 @@ LEVELS = {
                 "max_hp": 25,
                 "min_atk": 5,
                 "max_atk": 8,
+                "min_def": 1,
+                "max_def": 2,
                 "alive": True,
             },
             {
@@ -145,6 +155,8 @@ LEVELS = {
                 "max_hp": 25,
                 "min_atk": 5,
                 "max_atk": 8,
+                "min_def": 1,
+                "max_def": 2,
                 "alive": True,
             },
         ],

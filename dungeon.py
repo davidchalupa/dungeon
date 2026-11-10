@@ -568,15 +568,8 @@ while running:
                         hero = current_actor
                         if hero["hp"] > 0:
                             if event.key == pygame.K_a:
-                                if hero["weapon"] is not None:
-                                    dmg = random.randint(
-                                        hero["weapon"]["min_atk"], hero["weapon"]["max_atk"]
-                                    )
-                                else:
-                                    dmg = 0
-                                current_opponent["hp"] = max(
-                                    0, current_opponent["hp"] - dmg
-                                )
+                                dmg = combat.calculate_hero_attack_damage(hero, current_opponent)
+                                current_opponent["hp"] = max(0, current_opponent["hp"] - dmg)
 
                                 if current_opponent["hp"] <= 0:
                                     current_opponent["alive"] = False
@@ -584,9 +577,7 @@ while running:
                                     in_combat = False
                                     current_opponent = None
                                 else:
-                                    combat_message = (
-                                        f"{hero['name']} attacks for {dmg} damage! Next turn..."
-                                    )
+                                    combat_message = f"{hero['name']} attacks for {dmg} damage! Next turn..."
                                     combat.turn_index += 1
                             elif event.key == pygame.K_c:
                                 if hero.get("spells"):

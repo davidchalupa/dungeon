@@ -18,6 +18,20 @@ def start_combat_round(current_opponent):
         turn_index = 0
 
 
+def calculate_hero_attack_damage(hero, opponent):
+    """Calculates physical damage dealt by a hero, reduced by the opponent's defense range."""
+    if hero["weapon"] is not None:
+        raw_dmg = random.randint(hero["weapon"]["min_atk"], hero["weapon"]["max_atk"])
+    else:
+        raw_dmg = 0
+
+    def_min = opponent.get("min_def", 0)
+    def_max = opponent.get("max_def", 0)
+    def_reduction = random.randint(def_min, def_max) if def_max >= def_min else 0
+
+    return max(0, raw_dmg - def_reduction)
+
+
 def calculate_damage(opponent, target):
     """Calculates opponent damage reduced by a random number within the target's armor defense range."""
     raw_dmg = random.randint(opponent["min_atk"], opponent["max_atk"])
