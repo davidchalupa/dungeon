@@ -376,11 +376,18 @@ def draw_character_subscreen(surface, hero):
         atk_str = "Attack: 0"
     atk_txt = font_med.render(atk_str, True, (220, 120, 120))
 
+    if hero.get("armor") is not None:
+        def_str = f"Defense: {hero['armor']['min_def']}-{hero['armor']['max_def']}"
+    else:
+        def_str = "Defense: 0"
+    def_txt = font_med.render(def_str, True, (120, 160, 220))
+
     surface.blit(name_txt, (stats_x, stats_y))
-    surface.blit(class_txt, (stats_x, stats_y + 25))
-    surface.blit(hp_txt, (stats_x, stats_y + 50))
-    surface.blit(mp_txt, (stats_x, stats_y + 75))
-    surface.blit(atk_txt, (stats_x, stats_y + 100))
+    surface.blit(class_txt, (stats_x, stats_y + 22))
+    surface.blit(hp_txt, (stats_x, stats_y + 44))
+    surface.blit(mp_txt, (stats_x, stats_y + 66))
+    surface.blit(atk_txt, (stats_x, stats_y + 88))
+    surface.blit(def_txt, (stats_x, stats_y + 110))
 
     sil_center_x = bg_rect.centerx
     sil_center_y = bg_rect.centery + 30
@@ -402,14 +409,18 @@ def draw_character_subscreen(surface, hero):
         border_radius=4,
     )
 
+    # Armor slot & icon
     armor_slot_rect = pygame.Rect(sil_center_x - 20, sil_center_y - 40, 40, 40)
     pygame.draw.rect(surface, (30, 30, 38), armor_slot_rect)
     pygame.draw.rect(surface, (110, 100, 70), armor_slot_rect, 2)
+    if hero.get("armor") is not None and "icon" in hero["armor"]:
+        armor_icon_rect = hero["armor"]["icon"].get_rect(center=armor_slot_rect.center)
+        surface.blit(hero["armor"]["icon"], armor_icon_rect)
 
+    # Weapon slot & icon
     weapon_slot_rect = pygame.Rect(sil_center_x - 80, sil_center_y - 20, 40, 40)
     pygame.draw.rect(surface, (30, 30, 38), weapon_slot_rect)
     pygame.draw.rect(surface, (110, 100, 70), weapon_slot_rect, 2)
-
     if hero["weapon"] is not None and "icon" in hero["weapon"]:
         icon_rect = hero["weapon"]["icon"].get_rect(center=weapon_slot_rect.center)
         surface.blit(hero["weapon"]["icon"], icon_rect)
@@ -417,7 +428,7 @@ def draw_character_subscreen(surface, hero):
     footer_txt = font_med.render(
         "Press [ESC] to return to Dungeon", True, (170, 170, 170)
     )
-    surface.blit(footer_txt, footer_txt.get_rect(center=(bg_rect.centerx, 390)))
+    surface.blit(footer_txt, footer_txt.get_rect(center=(bg_rect.centerx, 410)))
 
 
 # Helper function to select and cast spell
@@ -610,9 +621,7 @@ while running:
                 if living_heroes:
                     if combat.has_line_of_sight(posX, posY, current_opponent["x"], current_opponent["y"]):
                         target = random.choice(living_heroes)
-                        dmg = random.randint(
-                            current_opponent["min_atk"], current_opponent["max_atk"]
-                        )
+                        dmg = combat.calculate_damage(current_opponent, target)
                         target["hp"] = max(0, target["hp"] - dmg)
                         attack_flash_timer = 20
                         combat_message = f"{current_opponent['name']} attacks {target['name']} for {dmg} damage!"

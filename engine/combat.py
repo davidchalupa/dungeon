@@ -17,6 +17,20 @@ def start_combat_round(current_opponent):
         random.shuffle(turn_queue)
         turn_index = 0
 
+
+def calculate_damage(opponent, target):
+    """Calculates opponent damage reduced by a random number within the target's armor defense range."""
+    raw_dmg = random.randint(opponent["min_atk"], opponent["max_atk"])
+    armor = target.get("armor")
+
+    if armor and "min_def" in armor and "max_def" in armor:
+        def_reduction = random.randint(armor["min_def"], armor["max_def"])
+        final_dmg = max(0, raw_dmg - def_reduction)
+        return final_dmg
+
+    return raw_dmg
+
+
 def is_water(x, y, map_data=None):
     active_map = map_data if map_data is not None else WORLD_MAP
     map_height = len(active_map)
@@ -32,7 +46,7 @@ def is_wall(x, y, map_data=None):
     map_width = len(active_map[0])
     if x < 0 or y < 0 or x >= map_width or y >= map_height:
         return True
-    return active_map[y][x] == 1        # was: > 0
+    return active_map[y][x] == 1  # was: > 0
 
 
 def can_move_to(x, y, PLAYER_RADIUS):

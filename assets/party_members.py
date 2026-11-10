@@ -1,4 +1,4 @@
-from assets.items import dagger_item, longsword_item
+from assets.items import dagger_item, longsword_item, leather_armor_item, scale_armor_item
 
 party_members = [
     {
@@ -10,6 +10,7 @@ party_members = [
         "mp": 0,
         "max_mp": 0,
         "weapon": longsword_item,
+        "armor": scale_armor_item,
         "spells": [],
     },
     {
@@ -21,6 +22,7 @@ party_members = [
         "mp": 10,
         "max_mp": 10,
         "weapon": dagger_item,
+        "armor": leather_armor_item,
         "spells": ["Magic Arrow", "Heal"],
     },
     {
@@ -32,6 +34,7 @@ party_members = [
         "mp": 0,
         "max_mp": 0,
         "weapon": longsword_item,
+        "armor": scale_armor_item,
         "spells": [],
     },
     {
@@ -43,6 +46,7 @@ party_members = [
         "mp": 3,
         "max_mp": 3,
         "weapon": longsword_item,
+        "armor": scale_armor_item,
         "spells": ["Magic Arrow", "Heal"],
     },
 ]
