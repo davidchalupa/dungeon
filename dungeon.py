@@ -10,7 +10,7 @@ from engine.textures import FLOOR_TEXTURES
 
 from assets.items import initialize_item_assets
 from assets.levels import LEVELS
-from assets.party_members import party_members, initialize_hero_avatars, HERO_PORTRAIT_SIZE
+from assets.party_members import party_members, initialize_hero_avatars
 from assets.spells import SPELLS
 import engine.combat as combat
 import engine.renderer as renderer

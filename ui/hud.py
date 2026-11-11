@@ -1,20 +1,8 @@
 import math
-import random
-import sys
 import pygame
 
-import numpy as np
-from engine.floor_and_sky import FloorCaster, surface_to_array, make_sky, build_floor_luts, draw_sun
-
-from engine.textures import FLOOR_TEXTURES
-
-from assets.items import initialize_item_assets
-from assets.levels import LEVELS
-from assets.party_members import party_members, initialize_hero_avatars, HERO_PORTRAIT_SIZE
+from assets.party_members import party_members, HERO_PORTRAIT_SIZE
 from assets.spells import SPELLS
-import engine.combat as combat
-import engine.renderer as renderer
-from engine.procedural_sprites import get_cached_procedural_goblin_ghost
 from ui.common import VIRTUAL_HEIGHT, get_fonts
 
 
@@ -231,6 +219,13 @@ def draw_character_subscreen(surface, hero):
     stats_y = avatar_y + 5
     name_txt = font_large.render(hero["name"], True, (255, 255, 255))
     class_txt = font_med.render(f"Class: {hero['class']}", True, (180, 180, 190))
+
+    # Level & Total Experience display
+    lvl = hero.get("level", 1)
+    exp = hero.get("exp", 0)
+    level_txt = font_med.render(f"Level: {lvl}", True, (220, 200, 100))
+    exp_txt = font_med.render(f"Experience: {exp}", True, (220, 200, 100))
+
     hp_txt = font_med.render(
         f"Hit Points: {hero['hp']} / {hero['max_hp']}", True, (120, 220, 120)
     )
@@ -250,12 +245,26 @@ def draw_character_subscreen(surface, hero):
         def_str = "Defense: 0"
     def_txt = font_med.render(def_str, True, (120, 160, 220))
 
+    # Render top info (Name, Class, Level, Experience)
     surface.blit(name_txt, (stats_x, stats_y))
-    surface.blit(class_txt, (stats_x, stats_y + 22))
-    surface.blit(hp_txt, (stats_x, stats_y + 44))
-    surface.blit(mp_txt, (stats_x, stats_y + 66))
-    surface.blit(atk_txt, (stats_x, stats_y + 88))
-    surface.blit(def_txt, (stats_x, stats_y + 110))
+    surface.blit(class_txt, (stats_x, stats_y + 20))
+    surface.blit(level_txt, (stats_x, stats_y + 42))
+    surface.blit(exp_txt, (stats_x, stats_y + 62))
+
+    # Divider line separating progression stats from combat stats
+    pygame.draw.line(
+        surface,
+        (70, 70, 85),
+        (stats_x, stats_y + 86),
+        (stats_x + 220, stats_y + 86),
+        1
+    )
+
+    # Render combat stats below the divider
+    surface.blit(hp_txt, (stats_x, stats_y + 96))
+    surface.blit(mp_txt, (stats_x, stats_y + 116))
+    surface.blit(atk_txt, (stats_x, stats_y + 136))
+    surface.blit(def_txt, (stats_x, stats_y + 156))
 
     sil_center_x = bg_rect.centerx
     sil_center_y = bg_rect.centery + 30
