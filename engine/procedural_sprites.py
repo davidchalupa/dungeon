@@ -1,4 +1,6 @@
 import pygame
+import math
+
 
 goblin_ghost_surface_cache = {}
 
@@ -74,5 +76,113 @@ def get_cached_procedural_goblin_ghost(width, height, body_color, breath):
     pygame.draw.circle(base_surf, sparkle_color, (cx + 32, cy + 55), 4)
 
     scaled_surf = pygame.transform.smoothscale(base_surf, (qw, qh))
+    goblin_ghost_surface_cache[key] = scaled_surf
+    return scaled_surf
+
+SPIDER_ANIM_PHASES = 6
+
+def _quad_curve_points(p0, p1, p2, segments=8):
+    """Sample a quadratic Bezier (parabolic arc) between p0 and p2 with control p1."""
+    pts = []
+    for i in range(segments + 1):
+        u = i / segments
+        v = 1 - u
+        x = v * v * p0[0] + 2 * v * u * p1[0] + u * u * p2[0]
+        y = v * v * p0[1] + 2 * v * u * p1[1] + u * u * p2[1]
+        pts.append((x, y))
+    return pts
+
+
+def get_cached_procedural_cave_spider(width, height, body_color, anim_phase):
+    """Procedurally drawn, animated cave spider. Parabolic legs, dark palette.
+
+    anim_phase: int in [0, SPIDER_ANIM_PHASES).
+    """
+    target_w = max(10, width)
+    target_h = max(10, height)
+
+    key = (target_w, target_h, body_color, anim_phase)
+    if key in goblin_ghost_surface_cache:
+        return goblin_ghost_surface_cache[key]
+
+    base_size = 256
+    base_surf = pygame.Surface((base_size, base_size), pygame.SRCALPHA)
+
+    t = (anim_phase / SPIDER_ANIM_PHASES) * math.tau
+    cx = base_size // 2
+    cy = int(base_size * 0.60) + int(math.sin(t) * 3)  # center low so legs ground out
+
+    # Dark, earthy palette derived from body_color (near-black when body_color is dark)
+    r, g, b = body_color
+    carapace = (int(r * 0.55), int(g * 0.52), int(b * 0.48), 235)
+    abdomen = (int(r * 0.48), int(g * 0.44), int(b * 0.40), 240)
+    marking = (int(r * 0.68), int(g * 0.60), int(b * 0.52), 190)
+    leg_color = (int(r * 0.42), int(g * 0.40), int(b * 0.36), 230)
+    aura_color = (r, g, b, 22)
+
+    pygame.draw.ellipse(base_surf, aura_color, (cx - 80, cy - 70, 160, 140))
+
+    # ---- 8 legs: 4 per side, each a pair of parabolic arcs ----
+    leg_roots = [-14, -5, 5, 14]
+    for side in (-1, 1):
+        for i, root_x in enumerate(leg_roots):
+            phase = t + i * 0.8 + (0.4 if side == 1 else 0.0)
+            lift = math.sin(phase)      # stepping motion
+            sway = math.cos(phase * 0.5)
+
+            hip = (cx + side * (30 + abs(root_x) * 0.2), cy + root_x * 0.35 - 2)
+
+            # front legs reach forward, back legs backward
+            reach = (3 - i) * 10
+            foot_x = cx + side * (74 + i * 5 + reach * 0.5 + int(sway * 6))
+            foot_y = cy + root_x * 0.6 + 52 - int(max(0.0, lift) * 14)
+            foot = (foot_x, foot_y)
+
+            # knee: arched above the hip-foot line; height breathes with the step
+            mid_x = (hip[0] + foot_x) / 2
+            arch = 26 + i * 3 + int(lift * 6)
+            knee = (mid_x + side * 6, min(hip[1], foot_y) - arch)
+
+            # upper segment: hip -> knee (parabola bulging slightly outward/up)
+            upper = _quad_curve_points(
+                hip, (mid_x + side * 10, knee[1] - 8), knee, segments=6)
+            # lower segment: knee -> foot (parabola, gentler curve)
+            lower = _quad_curve_points(
+                knee, ((knee[0] + foot_x) / 2, (knee[1] + foot_y) / 2 + 6), foot, segments=6)
+
+            pygame.draw.lines(base_surf, leg_color, False, upper, 4)
+            pygame.draw.lines(base_surf, leg_color, False, lower, 3)
+
+    # ---- Abdomen (rear) with gentle pulse ----
+    ab_pulse = int(math.sin(t * 2) * 2)
+    ab_cx, ab_cy = cx - 30, cy + 4
+    pygame.draw.ellipse(base_surf, abdomen,
+                        (ab_cx - 42, ab_cy - 34 - ab_pulse, 84, 68 + ab_pulse * 2))
+    # faint chevron markings
+    for k in range(3):
+        w = 22 - k * 6
+        pygame.draw.arc(base_surf, marking,
+                        (ab_cx - w, ab_cy - 18 + k * 14, w * 2, 24), 3.5, 5.9, 3)
+
+    # ---- Cephalothorax (front, smaller) ----
+    th_cx, th_cy = cx + 26, cy - 2
+    pygame.draw.ellipse(base_surf, carapace, (th_cx - 26, th_cy - 22, 52, 44))
+
+    # ---- Small mouth parts ----
+    chelicerae = (int(r * 0.50), int(g * 0.47), int(b * 0.43), 225)
+    pygame.draw.ellipse(base_surf, chelicerae, (th_cx + 8, th_cy + 10, 12, 14))
+    pygame.draw.ellipse(base_surf, chelicerae, (th_cx + 18, th_cy + 8, 10, 12))
+
+    # ---- 8 eyes: 2 slightly larger + 6 tiny, dim glint ----
+    eye = (60, 45, 40, 255)
+    glint = (190, 170, 150, 200)
+    big = [(th_cx + 12, th_cy - 6), (th_cx + 20, th_cy - 4)]
+    for ex, ey in big:
+        pygame.draw.circle(base_surf, eye, (ex, ey), 3)
+        pygame.draw.circle(base_surf, glint, (ex - 1, ey - 1), 1)
+    # for ex, ey in [(-2, -10), (4, -13), (10, -15), (16, -12), (2, 0), (8, -1)]:
+    #     pygame.draw.circle(base_surf, eye, (th_cx + ex, th_cy + ey), 1)
+
+    scaled_surf = pygame.transform.smoothscale(base_surf, (target_w, target_h))
     goblin_ghost_surface_cache[key] = scaled_surf
     return scaled_surf

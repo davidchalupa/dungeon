@@ -14,7 +14,10 @@ from assets.party_members import party_members, initialize_hero_avatars
 from assets.spells import SPELLS
 import engine.combat as combat
 import engine.renderer as renderer
-from engine.procedural_sprites import get_cached_procedural_goblin_ghost
+from engine.procedural_sprites import (
+    get_cached_procedural_goblin_ghost,
+    get_cached_procedural_cave_spider,
+)
 from ui.hud import draw_party_ui, draw_character_subscreen, draw_spell_book
 from ui.common import VIRTUAL_HEIGHT, VIRTUAL_WIDTH, initialize_fonts
 from ui.map import draw_map
@@ -582,8 +585,13 @@ while running:
             if transformY > 0.2:
                 screenX = int((RENDER_WIDTH / 2) * (1.0 + transformX / transformY))
 
-                spriteHeight = abs(int(RENDER_HEIGHT / transformY * 1.35))
-                spriteWidth = abs(int(RENDER_HEIGHT / transformY * 1.35))
+                if opp.get("sprite") == "spider":
+                    sprite_scale = 0.5
+                else:
+                    sprite_scale = 1.35
+
+                spriteHeight = abs(int(RENDER_HEIGHT / transformY * sprite_scale))
+                spriteWidth = abs(int(RENDER_HEIGHT / transformY * sprite_scale))
 
                 drawStartY = max(0, (RENDER_HEIGHT - spriteHeight) // 2)
                 drawEndY = min(RENDER_HEIGHT, (RENDER_HEIGHT + spriteHeight) // 2)
@@ -592,6 +600,10 @@ while running:
 
                 if drawEndX <= drawStartX or drawEndY <= drawStartY:
                     continue
+
+                ground_offset = 0
+                if opp.get("sprite") == "spider":
+                    ground_offset = int(spriteHeight * 0.25)
 
                 visible = False
                 check_stripes = [drawStartX, screenX, drawEndX - 1]
@@ -605,21 +617,24 @@ while running:
                     continue
 
                 is_current = in_combat and current_opponent == opp
-                body_color = (
-                    (200, 60, 60)
-                    if (is_current and (attack_flash_timer > 0 or spell_effect_timer > 0))
-                    else (70, 190, 160)
-                )
-                breath = int(math.sin(pygame.time.get_ticks() * 0.008 + opp["x"]) * 6)
+                flashing = is_current and (attack_flash_timer > 0 or spell_effect_timer > 0)
 
-                ghost_surf = get_cached_procedural_goblin_ghost(
-                    drawEndX - drawStartX,
-                    drawEndY - drawStartY,
-                    body_color,
-                    breath,
-                )
+                if opp.get("sprite") == "spider":
+                    anim_phase = (pygame.time.get_ticks() // 40) % 24
+                    spider_color = (180, 50, 40) if flashing else (45, 42, 40)
+                    ghost_surf = get_cached_procedural_cave_spider(
+                        drawEndX - drawStartX, drawEndY - drawStartY,
+                        spider_color, anim_phase,
+                    )
+                else:
+                    body_color = (200, 60, 60) if flashing else (70, 190, 160)
+                    breath = int(math.sin(pygame.time.get_ticks() * 0.008 + opp["x"]) * 6)
+                    ghost_surf = get_cached_procedural_goblin_ghost(
+                        drawEndX - drawStartX, drawEndY - drawStartY,
+                        body_color, breath,
+                    )
 
-                screen.blit(ghost_surf, (drawStartX, drawStartY))
+                screen.blit(ghost_surf, (drawStartX, drawStartY + ground_offset))
 
     if attack_flash_timer > 0:
         attack_flash_timer -= 1
