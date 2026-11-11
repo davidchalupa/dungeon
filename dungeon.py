@@ -17,6 +17,7 @@ import engine.renderer as renderer
 from engine.procedural_sprites import get_cached_procedural_goblin_ghost
 from ui.hud import draw_party_ui, draw_character_subscreen, draw_spell_book
 from ui.common import VIRTUAL_HEIGHT, VIRTUAL_WIDTH, initialize_fonts
+from ui.map import draw_map
 
 
 # Initialize Pygame
@@ -89,6 +90,7 @@ viewing_character = None
 viewing_spell_book = None
 targeting_spell = None
 resting_confirmation = False
+map_visible = False
 spellcaster = None
 in_combat = False
 current_opponent = None
@@ -236,6 +238,9 @@ while running:
 
                         targeting_spell = None
                         spellcaster = None
+            elif map_visible:
+                if event.key in (pygame.K_m, pygame.K_ESCAPE):
+                    map_visible = False
             elif viewing_spell_book is not None:
                 if event.key == pygame.K_ESCAPE:
                     viewing_spell_book = None
@@ -287,6 +292,8 @@ while running:
                             resting_confirmation = True
                         else:
                             combat_message = "Cannot rest while in combat!"
+                    elif event.key == pygame.K_m:  # Toggle map
+                        map_visible = True
 
                 if in_combat and current_opponent and current_opponent["alive"]:
                     if current_actor and current_actor != current_opponent:
@@ -354,7 +361,7 @@ while running:
         else:
             combat.start_combat_round(current_opponent)
 
-    if viewing_character is None and viewing_spell_book is None and targeting_spell is None and not resting_confirmation and not in_combat:
+    if viewing_character is None and viewing_spell_book is None and targeting_spell is None and not resting_confirmation and not in_combat and not map_visible:
         keys = pygame.key.get_pressed()
         if keys[pygame.K_UP]:
             newX = posX + dirX * MOVE_SPEED
@@ -387,7 +394,7 @@ while running:
             planeY = oldPlaneX * math.sin(-ROT_SPEED) + planeY * math.cos(-ROT_SPEED)
 
     # Check for enemy encounters only when exploring
-    if viewing_character is None and viewing_spell_book is None and targeting_spell is None and not resting_confirmation and not in_combat:
+    if viewing_character is None and viewing_spell_book is None and targeting_spell is None and not resting_confirmation and not in_combat and not map_visible:
         enc_in_combat, enc_opp, dirX, dirY, planeX, planeY, enc_msg = combat.check_enemy_encounters(
             posX, posY, dirX, dirY, planeX, planeY, opponents, in_combat
         )
@@ -713,8 +720,10 @@ while running:
         current_actor = party_members[selected_hero_index]
     draw_party_ui(game_surface, current_actor=current_actor, targeting_active=(targeting_spell is not None))
 
-    # Render Subscreens if active
-    if viewing_spell_book is not None:
+    # Render Subscreens & Overlays if active
+    if map_visible:
+        draw_map(game_surface, WORLD_MAP, (posX, posY), (dirX, dirY), opponents, level_data["name"])
+    elif viewing_spell_book is not None:
         draw_spell_book(game_surface, viewing_spell_book)
     elif viewing_character is not None:
         draw_character_subscreen(game_surface, party_members[viewing_character])
