@@ -88,10 +88,11 @@ selected_hero_index = 0
 viewing_character = None
 viewing_spell_book = None
 targeting_spell = None
+resting_confirmation = False
 spellcaster = None
 in_combat = False
 current_opponent = None
-combat_message = "Exploring the dungeon..."
+combat_message = "Exploring the dungeon... Press [R] to Rest."
 attack_flash_timer = 0
 spell_effect_timer = 0
 
@@ -119,7 +120,7 @@ def load_level(level_id):
     opponents = [dict(o) for o in level_data["opponents"]]
     in_combat = False
     current_opponent = None
-    combat_message = "Exploring the dungeon..."
+    combat_message = "Exploring the dungeon... Press [R] to Rest."
 
     floor_map_array = np.array(WORLD_MAP)
     floor_tex_arrays = {}
@@ -201,6 +202,19 @@ while running:
                     window = pygame.display.set_mode((DESKTOP_WIDTH, DESKTOP_HEIGHT), pygame.FULLSCREEN)
                 else:
                     window = pygame.display.set_mode((INIT_WIDTH, INIT_HEIGHT), pygame.RESIZABLE)
+            elif resting_confirmation:
+                if event.key == pygame.K_y:
+                    for hero in party_members:
+                        hero["hp"] = hero["max_hp"]
+                        if "max_mp" in hero:
+                            hero["mp"] = hero["max_mp"]
+                        else:
+                            hero["mp"] = hero.get("mp", 50)
+                    resting_confirmation = False
+                    combat_message = "The party rests. HP and Mana are fully restored!"
+                elif event.key in (pygame.K_n, pygame.K_ESCAPE):
+                    resting_confirmation = False
+                    combat_message = "Resting cancelled."
             elif targeting_spell is not None:
                 if event.key == pygame.K_ESCAPE:
                     targeting_spell = None
@@ -268,6 +282,11 @@ while running:
                             viewing_spell_book = hero
                         else:
                             combat_message = f"{hero['name']} has no spells!"
+                    elif event.key == pygame.K_r:
+                        if not in_combat:
+                            resting_confirmation = True
+                        else:
+                            combat_message = "Cannot rest while in combat!"
 
                 if in_combat and current_opponent and current_opponent["alive"]:
                     if current_actor and current_actor != current_opponent:
@@ -335,7 +354,7 @@ while running:
         else:
             combat.start_combat_round(current_opponent)
 
-    if viewing_character is None and viewing_spell_book is None and targeting_spell is None and not in_combat:
+    if viewing_character is None and viewing_spell_book is None and targeting_spell is None and not resting_confirmation and not in_combat:
         keys = pygame.key.get_pressed()
         if keys[pygame.K_UP]:
             newX = posX + dirX * MOVE_SPEED
@@ -368,7 +387,7 @@ while running:
             planeY = oldPlaneX * math.sin(-ROT_SPEED) + planeY * math.cos(-ROT_SPEED)
 
     # Check for enemy encounters only when exploring
-    if viewing_character is None and viewing_spell_book is None and targeting_spell is None and not in_combat:
+    if viewing_character is None and viewing_spell_book is None and targeting_spell is None and not resting_confirmation and not in_combat:
         enc_in_combat, enc_opp, dirX, dirY, planeX, planeY, enc_msg = combat.check_enemy_encounters(
             posX, posY, dirX, dirY, planeX, planeY, opponents, in_combat
         )
@@ -592,8 +611,22 @@ while running:
     # ==========================================
     game_surface.blit(screen, (0, 0))
 
+    # Draw Rest Confirmation Modal Banner if active
+    if resting_confirmation:
+        rest_box = pygame.Rect(VIRTUAL_WIDTH // 2 - 210, VIRTUAL_HEIGHT // 2 - 60, 420, 120)
+        pygame.draw.rect(game_surface, (15, 20, 35), rest_box)
+        pygame.draw.rect(game_surface, (100, 180, 255), rest_box, 3)
+
+        title_lbl = font_title.render("REST AT CAMP?", True, (150, 220, 255))
+        sub_lbl1 = font_med.render("Restore full HP & Mana for all party members?", True, (220, 220, 220))
+        sub_lbl2 = font_med.render("[Y] Yes, Rest  |  [N / ESC] Cancel", True, (255, 200, 100))
+
+        game_surface.blit(title_lbl, title_lbl.get_rect(center=(rest_box.centerx, rest_box.y + 25)))
+        game_surface.blit(sub_lbl1, sub_lbl1.get_rect(center=(rest_box.centerx, rest_box.y + 55)))
+        game_surface.blit(sub_lbl2, sub_lbl2.get_rect(center=(rest_box.centerx, rest_box.y + 90)))
+
     # Draw Targeting Modal Banner if targeting is active
-    if targeting_spell is not None:
+    elif targeting_spell is not None:
         banner_rect = pygame.Rect(40, 150, VIRTUAL_WIDTH - 80, 70)
         pygame.draw.rect(game_surface, (10, 40, 20), banner_rect)
         pygame.draw.rect(game_surface, (50, 255, 120), banner_rect, 3)
@@ -640,14 +673,13 @@ while running:
 
         # Wrap text to fit within box width and height
         max_width = VIRTUAL_WIDTH - 40
-        text_to_render = f"Status: {combat_message} | [1-4] Select (Press again for Sheet) | [C] Spells"
+        text_to_render = f"Status: {combat_message} | [1-4] Select (Press again for Sheet) | [C] Spells | [R] Rest"
         lines = []
         words = text_to_render.split()
 
         current_line = ""
         for word in words:
             test_line = current_line + (" " if current_line else "") + word
-            # Check if adding this word exceeds max_width
             test_surface = font_med.render(test_line, True, (220, 220, 220))
             if test_surface.get_width() <= max_width:
                 current_line = test_line
@@ -658,7 +690,6 @@ while running:
         if current_line:
             lines.append(current_line)
 
-        # Render each line with proper spacing (36px box height / ~4-5 lines ≈ 7-8px per line)
         line_height = font_med.get_linesize() if hasattr(font_med, 'get_linesize') else 12
         start_y = status_box.y + 8
         for i, line in enumerate(lines):
@@ -698,13 +729,11 @@ while running:
     window_aspect = win_w / win_h if win_h > 0 else virtual_aspect
 
     if window_aspect > virtual_aspect:
-        # Window is wider than game -> Pillarboxing (black bars on left and right)
         scaled_h = win_h
         scaled_w = int(scaled_h * virtual_aspect)
         scale_x = (win_w - scaled_w) // 2
         scale_y = 0
     else:
-        # Window is taller than game -> Letterboxing (black bars on top and bottom)
         scaled_w = win_w
         scaled_h = int(scaled_w / virtual_aspect)
         scale_x = 0
