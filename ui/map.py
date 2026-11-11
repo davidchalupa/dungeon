@@ -3,10 +3,12 @@ import pygame
 from ui.common import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, initialize_fonts
 
 
-def draw_map(surface, world_map, player_pos, dir_vec, opponents, level_name="The Dungeon"):
+def draw_map(surface, world_map, player_pos, dir_vec, opponents, level_name="The Dungeon", floor_texture_id=None,
+             texture_id=1):
     font_med, font_large, font_title = initialize_fonts()
 
-    display_title = level_name
+    # Format title cleanly (e.g., "Level 1: The Stone Keep" -> "THE STONE KEEP")
+    display_title = level_name.split(":")[-1].strip().upper()
 
     # Semi-transparent backdrop or solid dark container box
     map_box = pygame.Rect(80, 50, VIRTUAL_WIDTH - 160, VIRTUAL_HEIGHT - 100)
@@ -19,11 +21,12 @@ def draw_map(surface, world_map, player_pos, dir_vec, opponents, level_name="The
     surface.blit(title_surf, (map_box.x + 20, map_box.y + 15))
     surface.blit(inst_surf, (map_box.right - inst_surf.get_width() - 20, map_box.y + 20))
 
-    # Legend bar
+    # Legend bar (Updated to include Floor, Grass, Water, Wall, Party)
     legend_y = map_box.y + 55
     legends = [
         ("Wall", (90, 90, 110)),
-        ("Floor", (170, 160, 140)),
+        ("Floor", (150, 140, 130)),
+        ("Grass", (60, 175, 80)),
         ("Water", (50, 130, 230)),
         ("Party", (255, 60, 60))
     ]
@@ -34,7 +37,7 @@ def draw_map(surface, world_map, player_pos, dir_vec, opponents, level_name="The
         pygame.draw.rect(surface, (200, 200, 200), (lx, legend_y, 14, 14), 1)
         lbl = font_med.render(name, True, (220, 220, 220))
         surface.blit(lbl, (lx + 18, legend_y - 2))
-        lx += 95
+        lx += 115
 
     # Grid drawing area
     grid_rect = pygame.Rect(map_box.x + 20, map_box.y + 85, map_box.width - 40, map_box.height - 105)
@@ -65,7 +68,13 @@ def draw_map(surface, world_map, player_pos, dir_vec, opponents, level_name="The
             elif cell_type == 2:
                 color = (50, 130, 230)  # Water
             else:
-                color = (170, 160, 140)  # Floor / Open
+                # Open floor type (0)
+                if floor_texture_id is not None or "Clearing" in level_name or "Island" in level_name:
+                    color = (60, 175, 80)  # Grass (Levels 3 & 4)
+                elif texture_id == 2:
+                    color = (130, 120, 110)  # Cavern Floor (Level 2)
+                else:
+                    color = (150, 140, 130)  # Stone Keep Floor (Level 1)
 
             cell_rect = pygame.Rect(
                 int(offset_x + c * cell_size),

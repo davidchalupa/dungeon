@@ -722,7 +722,16 @@ while running:
 
     # Render Subscreens & Overlays if active
     if map_visible:
-        draw_map(game_surface, WORLD_MAP, (posX, posY), (dirX, dirY), opponents, level_data["name"])
+        draw_map(
+            game_surface,
+            WORLD_MAP,
+            (posX, posY),
+            (dirX, dirY),
+            opponents,
+            level_name=level_data["name"],
+            floor_texture_id=level_data.get("floor_texture_id"),
+            texture_id=level_data.get("texture_id")
+        )
     elif viewing_spell_book is not None:
         draw_spell_book(game_surface, viewing_spell_book)
     elif viewing_character is not None:
