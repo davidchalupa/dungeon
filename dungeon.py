@@ -153,7 +153,9 @@ def select_spell_from_book(hero, spell_idx):
 
                     if current_opponent["hp"] <= 0:
                         current_opponent["alive"] = False
-                        combat_message = f"Victory! {hero['name']} casts {s_name} and defeats the {current_opponent['name']}!"
+                        exp_reward = current_opponent.get("exp_reward", 0)
+                        msg_suffix = combat.award_party_exp(exp_reward)
+                        combat_message = f"Victory! {hero['name']} casts {s_name} and defeats the {current_opponent['name']}!{msg_suffix}"
                         in_combat = False
                         current_opponent = None
                     else:
@@ -277,7 +279,9 @@ while running:
 
                                 if current_opponent["hp"] <= 0:
                                     current_opponent["alive"] = False
-                                    combat_message = f"Victory! {hero['name']} defeats the {current_opponent['name']}!"
+                                    exp_reward = current_opponent.get("exp_reward", 250)
+                                    msg_suffix = combat.award_party_exp(exp_reward)
+                                    combat_message = f"Victory! {hero['name']} defeats the {current_opponent['name']}!{msg_suffix}"
                                     in_combat = False
                                     current_opponent = None
                                 else:

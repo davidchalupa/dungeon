@@ -29,6 +29,7 @@ LEVELS = {
                 "max_atk": 8,
                 "min_def": 1,
                 "max_def": 2,
+                "exp_reward": 250,
                 "alive": True,
             },
             {
@@ -41,6 +42,7 @@ LEVELS = {
                 "max_atk": 8,
                 "min_def": 1,
                 "max_def": 2,
+                "exp_reward": 250,
                 "alive": True,
             },
         ],
@@ -72,6 +74,7 @@ LEVELS = {
                 "max_atk": 8,
                 "min_def": 1,
                 "max_def": 2,
+                "exp_reward": 250,
                 "alive": True,
             }
         ],
@@ -105,6 +108,7 @@ LEVELS = {
                 "max_atk": 8,
                 "min_def": 1,
                 "max_def": 2,
+                "exp_reward": 250,
                 "alive": True,
             }
         ],
@@ -145,6 +149,7 @@ LEVELS = {
                 "max_atk": 8,
                 "min_def": 1,
                 "max_def": 2,
+                "exp_reward": 250,
                 "alive": True,
             },
             {
@@ -157,6 +162,7 @@ LEVELS = {
                 "max_atk": 8,
                 "min_def": 1,
                 "max_def": 2,
+                "exp_reward": 250,
                 "alive": True,
             },
         ],

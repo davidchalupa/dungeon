@@ -136,3 +136,31 @@ def check_enemy_encounters(posX, posY, dirX, dirY, planeX, planeY, opponents, in
                 break
 
     return in_combat, current_opp, dirX, dirY, planeX, planeY, combat_msg
+
+
+def award_party_exp(exp_amount):
+    leveled_up_names = []
+    for hero in party_members:
+        if hero["hp"] > 0:  # Only living party members gain XP
+            hero["exp"] = hero.get("exp", 0) + exp_amount
+
+            # Total XP threshold for the next level
+            next_level_exp = hero["level"] * (hero["level"] + 1) * 500
+
+            while hero["exp"] >= next_level_exp:
+                hero["level"] += 1
+
+                # Increase ONLY the upper bound (max stats)
+                hero["max_hp"] = hero["level"] * hero["hp_per_level"]
+                hero["max_mp"] = hero["level"] * hero["mp_per_level"]
+
+                # NOTE: We removed hero["hp"] = hero["max_hp"] and hero["mp"] = hero["max_mp"]
+                # so current HP/MP remain at their current values without a full heal!
+
+                leveled_up_names.append(hero["name"])
+                next_level_exp = hero["level"] * (hero["level"] + 1) * 500
+
+    if leveled_up_names:
+        return f" Victory! Party gains {exp_amount} XP. LEVEL UP: {', '.join(leveled_up_names)}!"
+    else:
+        return f" Victory! Party gains {exp_amount} XP!"

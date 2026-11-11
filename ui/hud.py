@@ -220,11 +220,13 @@ def draw_character_subscreen(surface, hero):
     name_txt = font_large.render(hero["name"], True, (255, 255, 255))
     class_txt = font_med.render(f"Class: {hero['class']}", True, (180, 180, 190))
 
-    # Level & Total Experience display
+    # Level & Total Experience display with next-level target
     lvl = hero.get("level", 1)
     exp = hero.get("exp", 0)
+    target_exp = lvl * (lvl + 1) * 500
+
     level_txt = font_med.render(f"Level: {lvl}", True, (220, 200, 100))
-    exp_txt = font_med.render(f"Experience: {exp}", True, (220, 200, 100))
+    exp_txt = font_med.render(f"Experience: {exp} / {target_exp}", True, (220, 200, 100))
 
     hp_txt = font_med.render(
         f"Hit Points: {hero['hp']} / {hero['max_hp']}", True, (120, 220, 120)
