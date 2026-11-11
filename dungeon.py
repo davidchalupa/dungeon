@@ -97,6 +97,7 @@ current_opponent = None
 combat_message = "Exploring the dungeon... Press [R] to Rest."
 attack_flash_timer = 0
 spell_effect_timer = 0
+food_portions = 20
 
 floor_kind_lut = None
 floor_luts = []
@@ -206,14 +207,20 @@ while running:
                     window = pygame.display.set_mode((INIT_WIDTH, INIT_HEIGHT), pygame.RESIZABLE)
             elif resting_confirmation:
                 if event.key == pygame.K_y:
-                    for hero in party_members:
-                        hero["hp"] = hero["max_hp"]
-                        if "max_mp" in hero:
-                            hero["mp"] = hero["max_mp"]
-                        else:
-                            hero["mp"] = hero.get("mp", 50)
-                    resting_confirmation = False
-                    combat_message = "The party rests. HP and Mana are fully restored!"
+                    food_cost = len(party_members)
+                    if food_portions >= food_cost:
+                        food_portions -= food_cost
+                        for hero in party_members:
+                            hero["hp"] = hero["max_hp"]
+                            if "max_mp" in hero:
+                                hero["mp"] = hero["max_mp"]
+                            else:
+                                hero["mp"] = hero.get("mp", 50)
+                        resting_confirmation = False
+                        combat_message = f"The party rests, consuming {food_cost} food portions. HP & Mana restored!"
+                    else:
+                        resting_confirmation = False
+                        combat_message = f"Not enough food to rest! Need {food_cost} portions (have {food_portions})."
                 elif event.key in (pygame.K_n, pygame.K_ESCAPE):
                     resting_confirmation = False
                     combat_message = "Resting cancelled."
@@ -289,7 +296,23 @@ while running:
                             combat_message = f"{hero['name']} has no spells!"
                     elif event.key == pygame.K_r:
                         if not in_combat:
-                            resting_confirmation = True
+                            # Check if any alive opponent is within 5 cells
+                            hostile_nearby = False
+                            for opp in opponents:
+                                if opp.get("alive", True):
+                                    dist = math.hypot(opp["x"] - posX, opp["y"] - posY)
+                                    if dist <= 8.0:
+                                        hostile_nearby = True
+                                        break
+
+                            if hostile_nearby:
+                                combat_message = "Cannot rest! Hostile creatures are nearby!"
+                            else:
+                                food_cost = len(party_members)
+                                if food_portions >= food_cost:
+                                    resting_confirmation = True
+                                else:
+                                    combat_message = f"Not enough food to rest! Need {food_cost} portions (have {food_portions})."
                         else:
                             combat_message = "Cannot rest while in combat!"
                     elif event.key == pygame.K_m:  # Toggle map
@@ -625,7 +648,8 @@ while running:
         pygame.draw.rect(game_surface, (100, 180, 255), rest_box, 3)
 
         title_lbl = font_title.render("REST AT CAMP?", True, (150, 220, 255))
-        sub_lbl1 = font_med.render("Restore full HP & Mana for all party members?", True, (220, 220, 220))
+        sub_lbl1 = font_med.render(f"Restore HP/Mana? (Cost: {len(party_members)} Food | Have: {food_portions})", True,
+                                   (220, 220, 220))
         sub_lbl2 = font_med.render("[Y] Yes, Rest  |  [N / ESC] Cancel", True, (255, 200, 100))
 
         game_surface.blit(title_lbl, title_lbl.get_rect(center=(rest_box.centerx, rest_box.y + 25)))
@@ -707,7 +731,7 @@ while running:
     # Draw Level Title Overlay & Dynamic Switch hints
     fullscreen_text = "[F11] Exit Fullscreen" if is_fullscreen else "[F11] Fullscreen"
     txt = font_med.render(
-        f"{level_data['name']} | [F1/F2] Switch Level | {fullscreen_text}",
+        f"{level_data['name']} | Food: {food_portions} | [F1/F2] Switch Level | {fullscreen_text}",
         True,
         (240, 240, 240),
     )
