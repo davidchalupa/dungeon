@@ -120,7 +120,11 @@ def check_enemy_encounters(posX, posY, dirX, dirY, planeX, planeY, opponents, in
     for opp in opponents:
         if opp["alive"]:
             dist_to_enemy = math.hypot(posX - opp["x"], posY - opp["y"])
-            if dist_to_enemy < 2.5 and has_line_of_sight(posX, posY, opp["x"], opp["y"]):
+
+            is_spider = opp.get("sprite") == "spider"
+            trigger_dist = 1.5 if is_spider else 2.2
+
+            if dist_to_enemy < trigger_dist and has_line_of_sight(posX, posY, opp["x"], opp["y"]):
                 in_combat = True
                 current_opp = opp
                 combat_msg = f"Encountered a {opp['name']}! Combat started."
@@ -133,6 +137,12 @@ def check_enemy_encounters(posX, posY, dirX, dirY, planeX, planeY, opponents, in
                     dirY = toEnemyY / dist
                     planeX = dirY * 0.4
                     planeY = -dirX * 0.4
+
+                # --- Spiders spawn up close (0.9 cells), goblins at 1.5 cells ---
+                combat_spawn_dist = 0.9 if is_spider else 1.5
+                opp["x"] = posX + dirX * combat_spawn_dist
+                opp["y"] = posY + dirY * combat_spawn_dist
+
                 break
 
     return in_combat, current_opp, dirX, dirY, planeX, planeY, combat_msg
