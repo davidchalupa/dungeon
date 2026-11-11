@@ -1,4 +1,6 @@
+import pygame
 from assets.items import dagger_item, longsword_item, leather_armor_item, scale_armor_item
+
 
 party_members = [
     {
@@ -50,3 +52,17 @@ party_members = [
         "spells": ["Magic Arrow", "Heal"],
     },
 ]
+
+
+HERO_PORTRAIT_SIZE = 96
+
+def initialize_hero_avatars():
+    for hero in party_members:
+        hero["heal_flash"] = 0
+        try:
+            surf = pygame.image.load(hero["path"]).convert_alpha()
+            hero["avatar"] = pygame.transform.scale(surf, (HERO_PORTRAIT_SIZE, HERO_PORTRAIT_SIZE))
+        except Exception as e:
+            fallback = pygame.Surface((HERO_PORTRAIT_SIZE, HERO_PORTRAIT_SIZE))
+            fallback.fill((100, 100, 120))
+            hero["avatar"] = fallback
