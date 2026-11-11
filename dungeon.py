@@ -929,9 +929,34 @@ while running:
         status_box = pygame.Rect(20, 40, VIRTUAL_WIDTH - 40, 36)
         pygame.draw.rect(game_surface, (15, 15, 20), status_box)
         pygame.draw.rect(game_surface, (80, 80, 100), status_box, 1)
-        status_lbl = font_med.render(f"Status: {combat_message}  |  [1-4] Select (Press again for Sheet)  |  [C] Spells", True,
-                                     (220, 220, 220))
-        game_surface.blit(status_lbl, (status_box.x + 12, status_box.y + 8))
+
+        # Wrap text to fit within box width and height
+        max_width = VIRTUAL_WIDTH - 40
+        text_to_render = f"Status: {combat_message} | [1-4] Select (Press again for Sheet) | [C] Spells"
+        lines = []
+        words = text_to_render.split()
+
+        current_line = ""
+        for word in words:
+            test_line = current_line + (" " if current_line else "") + word
+            # Check if adding this word exceeds max_width
+            test_surface = font_med.render(test_line, True, (220, 220, 220))
+            if test_surface.get_width() <= max_width:
+                current_line = test_line
+            else:
+                lines.append(current_line)
+                current_line = word
+
+        if current_line:
+            lines.append(current_line)
+
+        # Render each line with proper spacing (36px box height / ~4-5 lines ≈ 7-8px per line)
+        line_height = font_med.get_linesize() if hasattr(font_med, 'get_linesize') else 12
+        start_y = status_box.y + 8
+        for i, line in enumerate(lines):
+            y_pos = start_y + (i * line_height)
+            surface_text = font_med.render(line, True, (220, 220, 220))
+            game_surface.blit(surface_text, (status_box.x + 12, y_pos))
 
     # Draw Level Title Overlay & Dynamic Switch hints
     fullscreen_text = "[F11] Exit Fullscreen" if is_fullscreen else "[F11] Fullscreen"
