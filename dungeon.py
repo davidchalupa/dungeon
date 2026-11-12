@@ -595,7 +595,16 @@ while running:
                 spriteWidth = abs(int(RENDER_HEIGHT / transformY * sprite_scale))
 
                 # --- Shift the entire vertical bounding box down so the spider sits on the floor ---
-                vertical_shift = int(spriteHeight * 0.35) if is_spider else 0
+                if is_spider:
+                    # Base proportional shift
+                    base_shift = int(spriteHeight * 0.42)
+
+                    # Stronger distance boost for far-away sprites where perspective compresses the floor gap
+                    distance_boost = int(max(0, 80 - spriteHeight) * 0.35) if spriteHeight < 80 else 0
+
+                    vertical_shift = base_shift + distance_boost
+                else:
+                    vertical_shift = 0
 
                 drawStartY = max(0, (RENDER_HEIGHT - spriteHeight) // 2 + vertical_shift)
                 drawEndY = min(RENDER_HEIGHT, (RENDER_HEIGHT + spriteHeight) // 2 + vertical_shift)
