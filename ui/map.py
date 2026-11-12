@@ -25,10 +25,10 @@ def draw_map(surface, world_map, player_pos, dir_vec, opponents, level_name="The
     legend_y = map_box.y + 55
     legends = [
         ("Wall", (90, 90, 110)),
+        ("Door", (150, 105, 60)),
         ("Floor", (150, 140, 130)),
         ("Grass", (60, 175, 80)),
         ("Water", (50, 130, 230)),
-        ("Party", (255, 60, 60))
     ]
 
     lx = map_box.x + 20
@@ -68,13 +68,38 @@ def draw_map(surface, world_map, player_pos, dir_vec, opponents, level_name="The
             elif cell_type == 2:
                 color = (50, 130, 230)  # Water
             else:
-                # Open floor type (0)
-                if floor_texture_id is not None or "Clearing" in level_name or "Island" in level_name:
-                    color = (60, 175, 80)  # Grass (Levels 3 & 4)
+                # Floor color derived from the level's floor texture
+                if floor_texture_id == 1:
+                    floor_color = (60, 175, 80)  # grass
+                elif floor_texture_id == 3:
+                    floor_color = (138, 134, 126)  # cobblestone
                 elif texture_id == 2:
-                    color = (130, 120, 110)  # Cavern Floor (Level 2)
+                    floor_color = (130, 120, 110)  # cavern floor
                 else:
-                    color = (150, 140, 130)  # Stone Keep Floor (Level 1)
+                    floor_color = (150, 140, 130)  # stone keep floor
+
+                # Draw Map Cells (Vertically inverted so index 0 is at the bottom)
+                for r in range(rows):
+                    display_r = rows - 1 - r
+                    for c in range(cols):
+                        cell_type = world_map[display_r][c]
+                        if cell_type == 2:
+                            color = (50, 130, 230)  # Water
+                        elif cell_type in (1, 3, 6):
+                            color = (90, 90, 110)  # Walls (brick, stone, shop wall)
+                        elif cell_type in (4, 7):
+                            color = (150, 105, 60)  # Doorways (shop front, town door)
+                        else:
+                            color = floor_color  # Open floor
+
+                        cell_rect = pygame.Rect(
+                            int(offset_x + c * cell_size),
+                            int(offset_y + r * cell_size),
+                            int(math.ceil(cell_size)),
+                            int(math.ceil(cell_size))
+                        )
+                        pygame.draw.rect(surface, color, cell_rect)
+                        pygame.draw.rect(surface, (30, 35, 45), cell_rect, 1)
 
             cell_rect = pygame.Rect(
                 int(offset_x + c * cell_size),
