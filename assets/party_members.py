@@ -17,6 +17,7 @@ party_members = [
         "weapon": longsword_item,
         "armor": scale_armor_item,
         "spells": [],
+        "inventory": [None] * 10,
     },
     {
         "name": "Lyra",
@@ -33,6 +34,7 @@ party_members = [
         "weapon": dagger_item,
         "armor": leather_armor_item,
         "spells": ["Magic Arrow", "Heal"],
+        "inventory": [None] * 10,
     },
     {
         "name": "Reece",
@@ -49,6 +51,7 @@ party_members = [
         "weapon": longsword_item,
         "armor": scale_armor_item,
         "spells": [],
+        "inventory": [None] * 10,
     },
     {
         "name": "Vesper",
@@ -65,6 +68,7 @@ party_members = [
         "weapon": longsword_item,
         "armor": scale_armor_item,
         "spells": ["Magic Arrow", "Heal"],
+        "inventory": [None] * 10,
     },
 ]
 

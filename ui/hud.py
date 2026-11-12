@@ -5,6 +5,17 @@ from assets.party_members import party_members, HERO_PORTRAIT_SIZE
 from assets.spells import SPELLS
 from ui.common import VIRTUAL_HEIGHT, get_fonts
 
+# Internal drag-and-drop & mouse state trackers
+_dragged_item = None
+_drag_source = None
+_prev_mouse_pressed = False
+
+# Global rect references accessible across drawing and event handling
+armor_slot_rect = pygame.Rect(0, 0, 0, 0)
+weapon_slot_rect = pygame.Rect(0, 0, 0, 0)
+silhouette_drop_rect = pygame.Rect(0, 0, 0, 0)
+inv_slot_rects = []
+
 
 # ==========================================
 # PARTY UI RENDER (Seamless Bottom Bar)
@@ -188,9 +199,12 @@ def draw_spell_book(surface, hero):
 
 
 # ==========================================
-# CHARACTER SUBSCREEN RENDER
+# CHARACTER SUBSCREEN RENDER & DRAG/DROP
 # ==========================================
 def draw_character_subscreen(surface, hero):
+    global _dragged_item, _drag_source, _prev_mouse_pressed
+    global armor_slot_rect, weapon_slot_rect, silhouette_drop_rect, inv_slot_rects
+
     font_med, font_large, _ = get_fonts()
     w = surface.get_width()
     bg_rect = pygame.Rect(0, 0, w, 580)
@@ -203,13 +217,10 @@ def draw_character_subscreen(surface, hero):
         (240, 220, 150),
     )
     surface.blit(title_txt, (bg_rect.x + 20, bg_rect.y + 15))
-    pygame.draw.line(
-        surface,
-        (90, 80, 55),
-        (bg_rect.x + 20, bg_rect.y + 45),
-        (bg_rect.right - 20, bg_rect.y + 45),
-        1,
-    )
+    pygame.draw.line(surface, (90, 80, 55), (bg_rect.x + 20, bg_rect.y + 45), (bg_rect.right - 20, bg_rect.y + 45), 1)
+
+    if "inventory" not in hero:
+        hero["inventory"] = [None] * 10
 
     avatar_x = bg_rect.x + 25
     avatar_y = bg_rect.y + 60
@@ -220,91 +231,208 @@ def draw_character_subscreen(surface, hero):
     name_txt = font_large.render(hero["name"], True, (255, 255, 255))
     class_txt = font_med.render(f"Class: {hero['class']}", True, (180, 180, 190))
 
-    # Level & Total Experience display with next-level target
     lvl = hero.get("level", 1)
     exp = hero.get("exp", 0)
     target_exp = lvl * (lvl + 1) * 500
 
     level_txt = font_med.render(f"Level: {lvl}", True, (220, 200, 100))
     exp_txt = font_med.render(f"Experience: {exp} / {target_exp}", True, (220, 200, 100))
+    hp_txt = font_med.render(f"Hit Points: {hero['hp']} / {hero['max_hp']}", True, (120, 220, 120))
+    mp_txt = font_med.render(f"Mana: {hero['mp']} / {hero['max_mp']}", True, (120, 180, 255))
 
-    hp_txt = font_med.render(
-        f"Hit Points: {hero['hp']} / {hero['max_hp']}", True, (120, 220, 120)
-    )
-    mp_txt = font_med.render(
-        f"Mana: {hero['mp']} / {hero['max_mp']}", True, (120, 180, 255)
-    )
-
-    if hero["weapon"] is not None:
-        atk_str = f"Attack: {hero['weapon']['min_atk']}-{hero['weapon']['max_atk']}"
-    else:
-        atk_str = "Attack: 0"
+    atk_str = f"Attack: {hero['weapon']['min_atk']}-{hero['weapon']['max_atk']}" if hero["weapon"] else "Attack: 0"
+    def_str = f"Defense: {hero['armor']['min_def']}-{hero['armor']['max_def']}" if hero.get("armor") else "Defense: 0"
     atk_txt = font_med.render(atk_str, True, (220, 120, 120))
-
-    if hero.get("armor") is not None:
-        def_str = f"Defense: {hero['armor']['min_def']}-{hero['armor']['max_def']}"
-    else:
-        def_str = "Defense: 0"
     def_txt = font_med.render(def_str, True, (120, 160, 220))
 
-    # Render top info (Name, Class, Level, Experience)
     surface.blit(name_txt, (stats_x, stats_y))
     surface.blit(class_txt, (stats_x, stats_y + 20))
     surface.blit(level_txt, (stats_x, stats_y + 42))
     surface.blit(exp_txt, (stats_x, stats_y + 62))
 
-    # Divider line separating progression stats from combat stats
-    pygame.draw.line(
-        surface,
-        (70, 70, 85),
-        (stats_x, stats_y + 86),
-        (stats_x + 220, stats_y + 86),
-        1
-    )
+    pygame.draw.line(surface, (70, 70, 85), (stats_x, stats_y + 86), (stats_x + 220, stats_y + 86), 1)
 
-    # Render combat stats below the divider
     surface.blit(hp_txt, (stats_x, stats_y + 96))
     surface.blit(mp_txt, (stats_x, stats_y + 116))
     surface.blit(atk_txt, (stats_x, stats_y + 136))
     surface.blit(def_txt, (stats_x, stats_y + 156))
 
-    sil_center_x = bg_rect.centerx
-    sil_center_y = bg_rect.centery + 30
+    # Silhouette & Equipment Slots
+    sil_center_x = bg_rect.centerx - 60
+    sil_center_y = bg_rect.centery + 10
     sil_color = (55, 55, 70)
 
     pygame.draw.circle(surface, sil_color, (sil_center_x, sil_center_y - 80), 20)
     torso_rect = pygame.Rect(sil_center_x - 28, sil_center_y - 55, 56, 85)
     pygame.draw.rect(surface, sil_color, torso_rect, border_radius=6)
-    pygame.draw.rect(
-        surface,
-        sil_color,
-        (sil_center_x - 46, sil_center_y - 50, 14, 75),
-        border_radius=4,
-    )
-    pygame.draw.rect(
-        surface,
-        sil_color,
-        (sil_center_x + 32, sil_center_y - 50, 14, 75),
-        border_radius=4,
-    )
+    pygame.draw.rect(surface, sil_color, (sil_center_x - 46, sil_center_y - 50, 14, 75), border_radius=4)
+    pygame.draw.rect(surface, sil_color, (sil_center_x + 32, sil_center_y - 50, 14, 75), border_radius=4)
 
-    # Armor slot & icon
     armor_slot_rect = pygame.Rect(sil_center_x - 20, sil_center_y - 40, 40, 40)
+    weapon_slot_rect = pygame.Rect(sil_center_x - 80, sil_center_y - 20, 40, 40)
+    silhouette_drop_rect = pygame.Rect(sil_center_x - 90, sil_center_y - 100, 180, 150)
+
     pygame.draw.rect(surface, (30, 30, 38), armor_slot_rect)
     pygame.draw.rect(surface, (110, 100, 70), armor_slot_rect, 2)
     if hero.get("armor") is not None and "icon" in hero["armor"]:
         armor_icon_rect = hero["armor"]["icon"].get_rect(center=armor_slot_rect.center)
         surface.blit(hero["armor"]["icon"], armor_icon_rect)
 
-    # Weapon slot & icon
-    weapon_slot_rect = pygame.Rect(sil_center_x - 80, sil_center_y - 20, 40, 40)
     pygame.draw.rect(surface, (30, 30, 38), weapon_slot_rect)
     pygame.draw.rect(surface, (110, 100, 70), weapon_slot_rect, 2)
     if hero["weapon"] is not None and "icon" in hero["weapon"]:
-        icon_rect = hero["weapon"]["icon"].get_rect(center=weapon_slot_rect.center)
-        surface.blit(hero["weapon"]["icon"], icon_rect)
+        w_icon_rect = hero["weapon"]["icon"].get_rect(center=weapon_slot_rect.center)
+        surface.blit(hero["weapon"]["icon"], w_icon_rect)
 
-    footer_txt = font_med.render(
-        "Press [ESC] to return to Dungeon", True, (170, 170, 170)
-    )
-    surface.blit(footer_txt, footer_txt.get_rect(center=(bg_rect.centerx, 410)))
+    # 10 Inventory Slots (Right Hand Side)
+    inv_start_x = bg_rect.right - 340
+    inv_start_y = bg_rect.y + 60
+    slot_width = 320
+    slot_height = 42
+    slot_spacing = 6
+
+    inv_slot_rects = []
+    for i in range(10):
+        sy = inv_start_y + i * (slot_height + slot_spacing)
+        s_rect = pygame.Rect(inv_start_x, sy, slot_width, slot_height)
+        inv_slot_rects.append(s_rect)
+
+        pygame.draw.rect(surface, (30, 30, 40), s_rect)
+        pygame.draw.rect(surface, (90, 80, 60), s_rect, 1)
+
+        item = hero["inventory"][i]
+        if item is not None:
+            icon_box = pygame.Rect(s_rect.x + 4, s_rect.y + 4, 34, 34)
+            pygame.draw.rect(surface, (45, 45, 60), icon_box)
+            if "icon" in item:
+                i_rect = item["icon"].get_rect(center=icon_box.center)
+                surface.blit(item["icon"], i_rect)
+
+            name_surf = font_med.render(item.get("name", "Unknown Item"), True, (240, 240, 240))
+            surface.blit(name_surf, (s_rect.x + 48, s_rect.y + 11))
+        else:
+            empty_surf = font_med.render(f"Empty Slot {i + 1}", True, (100, 100, 115))
+            surface.blit(empty_surf, (s_rect.x + 15, s_rect.y + 11))
+
+    # ==========================================
+    # MOUSE INPUT POLLING & DRAG/DROP LOGIC
+    # ==========================================
+    mouse_pos = pygame.mouse.get_pos()
+    mouse_buttons = pygame.mouse.get_pressed()
+    left_clicked = mouse_buttons[0] and not _prev_mouse_pressed
+    left_released = not mouse_buttons[0] and _prev_mouse_pressed
+
+    # Mouse down (Pick up item or quick unequip on right-click / shift-click)
+    if left_clicked:
+        if weapon_slot_rect.collidepoint(mouse_pos) and hero["weapon"]:
+            _dragged_item = hero["weapon"]
+            _drag_source = ("weapon", None)
+            hero["weapon"] = None
+        elif armor_slot_rect.collidepoint(mouse_pos) and hero.get("armor"):
+            _dragged_item = hero["armor"]
+            _drag_source = ("armor", None)
+            hero["armor"] = None
+        else:
+            for i, rect in enumerate(inv_slot_rects):
+                if rect.collidepoint(mouse_pos) and hero["inventory"][i]:
+                    _dragged_item = hero["inventory"][i]
+                    _drag_source = ("inventory", i)
+                    hero["inventory"][i] = None
+                    break
+
+    # Mouse up (Drop item or unequip to inventory)
+    elif left_released and _dragged_item is not None:
+        target_placed = False
+
+        item_is_weapon = "min_atk" in _dragged_item or _dragged_item.get("type") == "weapon"
+        item_is_armor = "min_def" in _dragged_item or _dragged_item.get("type") == "armor"
+
+        is_weapon_drop = weapon_slot_rect.collidepoint(mouse_pos) or (
+                    silhouette_drop_rect.collidepoint(mouse_pos) and mouse_pos[0] < sil_center_x)
+        is_armor_drop = armor_slot_rect.collidepoint(mouse_pos) or (
+                    silhouette_drop_rect.collidepoint(mouse_pos) and mouse_pos[0] >= sil_center_x)
+
+        if is_weapon_drop and item_is_weapon:
+            old_weapon = hero["weapon"]
+            hero["weapon"] = _dragged_item
+            target_placed = True
+            if old_weapon:
+                _return_item(hero, old_weapon, _drag_source)
+        elif is_armor_drop and item_is_armor:
+            old_armor = hero.get("armor")
+            hero["armor"] = _dragged_item
+            target_placed = True
+            if old_armor:
+                _return_item(hero, old_armor, _drag_source)
+        else:
+            # Check inventory slots
+            for i, rect in enumerate(inv_slot_rects):
+                if rect.collidepoint(mouse_pos):
+                    old_inv_item = hero["inventory"][i]
+                    hero["inventory"][i] = _dragged_item
+                    target_placed = True
+                    if old_inv_item:
+                        _return_item(hero, old_inv_item, _drag_source)
+                    break
+
+        # If dropped outside valid slots (unequipping or cancelling), auto-stow into inventory!
+        if not target_placed:
+            placed_in_inv = False
+            for i in range(10):
+                if hero["inventory"][i] is None:
+                    hero["inventory"][i] = _dragged_item
+                    placed_in_inv = True
+                    break
+            # Fallback to original source if inventory is completely full
+            if not placed_in_inv:
+                _return_item(hero, _dragged_item, _drag_source)
+
+        _dragged_item = None
+        _drag_source = None
+
+    _prev_mouse_pressed = mouse_buttons[0]
+
+    # Mouse Hover Tooltips for Worn Equipment
+    hovered_item = None
+    if weapon_slot_rect.collidepoint(mouse_pos) and hero["weapon"]:
+        hovered_item = hero["weapon"]
+        hover_title = f"Weapon: {hero['weapon']['name']}"
+        hover_stats = f"Atk: {hero['weapon']['min_atk']}-{hero['weapon']['max_atk']}"
+    elif armor_slot_rect.collidepoint(mouse_pos) and hero.get("armor"):
+        hovered_item = hero["armor"]
+        hover_title = f"Armor: {hero['armor']['name']}"
+        hover_stats = f"Def: {hero['armor']['min_def']}-{hero['armor']['max_def']}"
+
+    if hovered_item:
+        tip_surf_title = font_med.render(hover_title, True, (255, 255, 150))
+        tip_surf_stats = font_med.render(hover_stats, True, (200, 200, 200))
+        tip_rect = pygame.Rect(mouse_pos[0] + 10, mouse_pos[1] - 30,
+                               max(tip_surf_title.get_width(), tip_surf_stats.get_width()) + 16, 46)
+        pygame.draw.rect(surface, (15, 15, 25), tip_rect)
+        pygame.draw.rect(surface, (200, 180, 100), tip_rect, 1)
+        surface.blit(tip_surf_title, (tip_rect.x + 8, tip_rect.y + 4))
+        surface.blit(tip_surf_stats, (tip_rect.x + 8, tip_rect.y + 22))
+
+    if _dragged_item is not None and "icon" in _dragged_item:
+        surface.blit(_dragged_item["icon"], (mouse_pos[0] - 16, mouse_pos[1] - 16))
+
+    footer_txt = font_med.render("Drag items to equip/unequip/inventory | [ESC] Return", True, (170, 170, 170))
+    surface.blit(footer_txt, footer_txt.get_rect(center=(bg_rect.centerx, 545)))
+
+
+def _return_item(hero, item, source):
+    if not source:
+        return
+    stype, idx = source
+    if stype == "weapon":
+        hero["weapon"] = item
+    elif stype == "armor":
+        hero["armor"] = item
+    elif stype == "inventory":
+        if hero["inventory"][idx] is None:
+            hero["inventory"][idx] = item
+        else:
+            for i in range(10):
+                if hero["inventory"][i] is None:
+                    hero["inventory"][i] = item
+                    break
