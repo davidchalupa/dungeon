@@ -146,6 +146,13 @@ def load_level(level_id):
 # Helper function to select and cast spell
 def select_spell_from_book(hero, spell_idx):
     global viewing_spell_book, targeting_spell, spellcaster, in_combat, current_opponent, combat_message, spell_effect_timer
+
+    # Prevent fainted heroes from casting spells
+    if hero.get("hp", 0) <= 0:
+        combat_message = f"{hero['name']} is fainted and cannot cast spells!"
+        viewing_spell_book = None
+        return
+
     spells = hero.get("spells", [])
     if len(spells) > spell_idx:
         s_name = spells[spell_idx]
@@ -188,6 +195,12 @@ def select_spell_from_book(hero, spell_idx):
 # ==========================================
 running = True
 while running:
+    # Ensure selected hero is always alive; if fainted, shift to a living party member
+    if party_members[selected_hero_index]["hp"] <= 0:
+        living_indices = [i for i, h in enumerate(party_members) if h["hp"] > 0]
+        if living_indices:
+            selected_hero_index = living_indices[0]
+
     # Update heal flash animation timers
     for hero in party_members:
         if hero.get("heal_flash", 0) > 0:
@@ -272,26 +285,24 @@ while running:
                     viewing_character = 3
             else:
                 if not in_combat and targeting_spell is None:
-                    if event.key == pygame.K_1:
-                        if selected_hero_index == 0:
-                            viewing_character = 0
+                    key_mapping = {
+                        pygame.K_1: 0,
+                        pygame.K_2: 1,
+                        pygame.K_3: 2,
+                        pygame.K_4: 3
+                    }
+
+                    if event.key in key_mapping:
+                        target_idx = key_mapping[event.key]
+                        target_hero = party_members[target_idx]
+
+                        if target_hero["hp"] > 0:
+                            if selected_hero_index == target_idx:
+                                viewing_character = target_idx
+                            else:
+                                selected_hero_index = target_idx
                         else:
-                            selected_hero_index = 0
-                    elif event.key == pygame.K_2:
-                        if selected_hero_index == 1:
-                            viewing_character = 1
-                        else:
-                            selected_hero_index = 1
-                    elif event.key == pygame.K_3:
-                        if selected_hero_index == 2:
-                            viewing_character = 2
-                        else:
-                            selected_hero_index = 2
-                    elif event.key == pygame.K_4:
-                        if selected_hero_index == 3:
-                            viewing_character = 3
-                        else:
-                            selected_hero_index = 3
+                            combat_message = f"{target_hero['name']} is fainted and cannot be selected!"
                     elif event.key == pygame.K_c:
                         hero = party_members[selected_hero_index]
                         if hero.get("spells"):
