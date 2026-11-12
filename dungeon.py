@@ -9,7 +9,7 @@ from engine.floor_and_sky import FloorCaster, surface_to_array, make_sky, build_
 from engine.textures import FLOOR_TEXTURES
 
 from assets.items import initialize_item_assets
-from assets.levels import LEVELS
+from assets.levels import LEVELS, ENEMY_STATS
 from assets.party_members import party_members, initialize_hero_avatars
 from assets.spells import SPELLS
 import engine.combat as combat
@@ -76,7 +76,25 @@ level_data = LEVELS[current_level_id]
 WORLD_MAP = level_data["map"]
 combat.WORLD_MAP = WORLD_MAP  # Sync map with combat module
 active_texture_id = level_data["texture_id"]
-opponents = [dict(o) for o in level_data["opponents"]]
+
+
+def _expand_opponents(opponent_list):
+    """Merges shorthand opponent data with global stats."""
+    global ENEMY_STATS  # Explicitly reference the globally imported variable
+    expanded = []
+    for opp in opponent_list:
+        full_opp = dict(ENEMY_STATS[opp["type"]])
+        full_opp.update({k: v for k, v in opp.items() if k != "type"})
+
+        # Ensure default game state attributes are present
+        if "alive" not in full_opp:
+            full_opp["alive"] = True
+
+        expanded.append(full_opp)
+    return expanded
+
+# Initialize opponents for starting level
+opponents = _expand_opponents(level_data["opponents"])
 
 posX, posY = 1.5, 1.5
 dirX, dirY = -1.0, 0.0
@@ -124,7 +142,7 @@ def load_level(level_id):
     dirX, dirY = -1.0, 0.0
     planeX, planeY = 0.0, 0.4
 
-    opponents = [dict(o) for o in level_data["opponents"]]
+    opponents = _expand_opponents(level_data["opponents"])
     in_combat = False
     current_opponent = None
     combat_message = "Exploring the dungeon... Press [R] to Rest."

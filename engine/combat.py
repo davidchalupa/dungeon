@@ -118,7 +118,7 @@ def check_enemy_encounters(posX, posY, dirX, dirY, planeX, planeY, opponents, in
     combat_msg = "An enemy blocks your path!"
 
     for opp in opponents:
-        if opp["alive"]:
+        if opp.get("alive", True):
             dist_to_enemy = math.hypot(posX - opp["x"], posY - opp["y"])
 
             is_spider = opp.get("sprite") == "spider"
