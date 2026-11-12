@@ -371,6 +371,10 @@ while running:
                             load_level(3)
                         elif event.key == pygame.K_F4:
                             load_level(4)
+                        elif event.key == pygame.K_F5:
+                            load_level(5)
+                        elif event.key == pygame.K_F6:
+                            load_level(6)
                     elif event.key == pygame.K_ESCAPE:
                             running = False
 
@@ -511,10 +515,10 @@ while running:
                 break
 
             cell_type = WORLD_MAP[mapY][mapX]
-            if cell_type == 1:
-                hit = 1  # Solid wall hits stop the ray
+            if cell_type in (1, 3, 4, 6):
+                hit = 1  # Solid wall (brick, stone, or shop front)
             elif cell_type == 2:
-                pass  # Water cell (2): ray passes right through so FloorCaster renders the water!
+                pass  # Water: ray passes through
             elif combat.is_wall(mapX, mapY):
                 hit = 1
 
@@ -538,10 +542,13 @@ while running:
             "wallX": wallX,
             "rayDirX": rayDirX,
             "rayDirY": rayDirY,
+            "cell_type": cell_type if hit == 1 else 0,
         })
 
     # Wall Rendering Pass using renderer.TEXTURE_STRIPS
-    active_strips = renderer.TEXTURE_STRIPS[active_texture_id]
+    default_strips = renderer.TEXTURE_STRIPS[active_texture_id]
+    shop_door_strips = renderer.TEXTURE_STRIPS.get(4, default_strips)
+    shop_wall_strips = renderer.TEXTURE_STRIPS.get(6, default_strips)
     for x in range(RENDER_WIDTH):
         data = ray_cache[x]
         if data["hit"] != 1:
@@ -568,7 +575,13 @@ while running:
             texX = tex_res - texX - 1
 
         try:
-            wall_strip = active_strips[texX]
+            if data["cell_type"] == 4:
+                wall_strips = shop_door_strips
+            elif data["cell_type"] == 6:
+                wall_strips = shop_wall_strips
+            else:
+                wall_strips = default_strips
+            wall_strip = wall_strips[texX]
             scaled_strip = pygame.transform.scale(wall_strip, (1, lineHeight))
 
             if side == 1:

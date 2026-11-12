@@ -60,7 +60,7 @@ def is_wall(x, y, map_data=None):
     map_width = len(active_map[0])
     if x < 0 or y < 0 or x >= map_width or y >= map_height:
         return True
-    return active_map[y][x] == 1  # was: > 0
+    return active_map[y][x] in (1, 3, 4, 6)
 
 
 def can_move_to(x, y, PLAYER_RADIUS):
