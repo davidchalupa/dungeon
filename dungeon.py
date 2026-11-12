@@ -120,6 +120,7 @@ combat_message = "Exploring the dungeon... Press [R] to Rest."
 attack_flash_timer = 0
 spell_effect_timer = 0
 food_portions = 20
+gold = 0
 
 floor_kind_lut = None
 floor_luts = []
@@ -779,13 +780,8 @@ while running:
         game_surface.blit(msg_lbl, (combat_box.x + 15, combat_box.y + 35))
         game_surface.blit(action_lbl, (combat_box.x + 15, combat_box.y + 55))
     else:
-        # Non-combat status message / guide overlay
-        status_box = pygame.Rect(20, 40, VIRTUAL_WIDTH - 40, 36)
-        pygame.draw.rect(game_surface, (15, 15, 20), status_box)
-        pygame.draw.rect(game_surface, (80, 80, 100), status_box, 1)
-
-        # Wrap text to fit within box width and height
-        max_width = VIRTUAL_WIDTH - 40
+        # Non-combat status message / guide overlay (Dynamic sizing & correct padding)
+        max_width = VIRTUAL_WIDTH - 40 - 24  # Box width minus 12px left and right padding
         text_to_render = f"Status: {combat_message} | [1-4] Select (Press again for Sheet) | [C] Spells | [R] Rest"
         lines = []
         words = text_to_render.split()
@@ -803,8 +799,15 @@ while running:
         if current_line:
             lines.append(current_line)
 
-        line_height = font_med.get_linesize() if hasattr(font_med, 'get_linesize') else 12
-        start_y = status_box.y + 8
+        line_height = font_med.get_linesize() if hasattr(font_med, 'get_linesize') else 18
+        padding_y = 10
+        box_height = max(36, len(lines) * line_height + (padding_y * 2))
+
+        status_box = pygame.Rect(20, 40, VIRTUAL_WIDTH - 40, box_height)
+        pygame.draw.rect(game_surface, (15, 15, 20), status_box)
+        pygame.draw.rect(game_surface, (80, 80, 100), status_box, 1)
+
+        start_y = status_box.y + padding_y
         for i, line in enumerate(lines):
             y_pos = start_y + (i * line_height)
             surface_text = font_med.render(line, True, (220, 220, 220))
@@ -813,7 +816,7 @@ while running:
     # Draw Level Title Overlay & Dynamic Switch hints
     fullscreen_text = "[F11] Exit Fullscreen" if is_fullscreen else "[F11] Fullscreen"
     txt = font_med.render(
-        f"{level_data['name']} | Food: {food_portions} | [F1/F2] Switch Level | {fullscreen_text}",
+        f"{level_data['name']} | Gold: {gold} | Food: {food_portions} | [F1-F6] Switch Level | {fullscreen_text}",
         True,
         (240, 240, 240),
     )
