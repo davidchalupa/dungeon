@@ -16,7 +16,8 @@ import engine.combat as combat
 import engine.renderer as renderer
 from engine.procedural_sprites import (
     get_cached_procedural_goblin_ghost,
-    get_cached_procedural_cave_spider, SPIDER_ANIM_PHASES
+    get_cached_procedural_cave_spider, SPIDER_ANIM_PHASES,
+    get_cached_procedural_slime, SLIME_ANIM_PHASES,
 )
 from ui.hud import draw_party_ui, draw_character_subscreen, draw_spell_book
 from ui.common import VIRTUAL_HEIGHT, VIRTUAL_WIDTH, initialize_fonts
@@ -586,22 +587,26 @@ while running:
                 screenX = int((RENDER_WIDTH / 2) * (1.0 + transformX / transformY))
 
                 is_spider = opp.get("sprite") == "spider"
+                is_slime = opp.get("sprite") == "slime"
+
                 if is_spider:
-                    sprite_scale = 0.55  # Upgraded slightly from 0.5 for better presence up close
+                    sprite_scale = 0.55
+                elif is_slime:
+                    sprite_scale = 0.65
                 else:
                     sprite_scale = 1.35
 
                 spriteHeight = abs(int(RENDER_HEIGHT / transformY * sprite_scale))
                 spriteWidth = abs(int(RENDER_HEIGHT / transformY * sprite_scale))
 
-                # --- Shift the entire vertical bounding box down so the spider sits on the floor ---
+                # --- Shift bounding box down so entities sit flush on the floor ---
                 if is_spider:
-                    # Base proportional shift
                     base_shift = int(spriteHeight * 0.42)
-
-                    # Stronger distance boost for far-away sprites where perspective compresses the floor gap
                     distance_boost = int(max(0, 80 - spriteHeight) * 0.35) if spriteHeight < 80 else 0
-
+                    vertical_shift = base_shift + distance_boost
+                elif is_slime:
+                    base_shift = int(spriteHeight * 0.38)
+                    distance_boost = int(max(0, 80 - spriteHeight) * 0.30) if spriteHeight < 80 else 0
                     vertical_shift = base_shift + distance_boost
                 else:
                     vertical_shift = 0
@@ -634,6 +639,14 @@ while running:
                     ghost_surf = get_cached_procedural_cave_spider(
                         drawEndX - drawStartX, drawEndY - drawStartY,
                         spider_color, anim_phase,
+                    )
+                elif is_slime:
+                    anim_phase = (pygame.time.get_ticks() // 120) % SLIME_ANIM_PHASES
+                    slime_color = (230, 80, 180) if flashing else (50, 210,
+                                                                   100)  # Vibrant green, turns magenta when attacked!
+                    ghost_surf = get_cached_procedural_slime(
+                        drawEndX - drawStartX, drawEndY - drawStartY,
+                        slime_color, anim_phase,
                     )
                 else:
                     body_color = (200, 60, 60) if flashing else (70, 190, 160)

@@ -186,3 +186,81 @@ def get_cached_procedural_cave_spider(width, height, body_color, anim_phase):
     scaled_surf = pygame.transform.smoothscale(base_surf, (target_w, target_h))
     goblin_ghost_surface_cache[key] = scaled_surf
     return scaled_surf
+
+SLIME_ANIM_PHASES = 8
+
+def get_cached_procedural_slime(width, height, body_color, anim_phase):
+    """Procedurally drawn, disgusting spreading slime puddle with organic blobs, bubbles, and creepy eyes."""
+    target_w = max(10, width)
+    target_h = max(10, height)
+
+    key = (target_w, target_h, body_color, anim_phase)
+    if key in goblin_ghost_surface_cache:
+        return goblin_ghost_surface_cache[key]
+
+    base_size = 256
+    base_surf = pygame.Surface((base_size, base_size), pygame.SRCALPHA)
+
+    t = (anim_phase / SLIME_ANIM_PHASES) * math.tau
+    cx = base_size // 2
+    cy = int(base_size * 0.74)  # Very low profile, flattened heavily against the floor
+
+    r, g, b = body_color
+    outer_color = (r, g, b, 170)
+    inner_color = (max(0, r - 35), max(0, g - 35), max(0, b - 35), 210)
+    core_color = (min(255, r + 45), min(255, g + 45), min(255, b + 45), 230)
+
+    # Organic shifting wobble values
+    wobble1 = math.sin(t) * 9
+    wobble2 = math.cos(t * 1.5) * 7
+
+    # Wide spreading puddle base (flat on the ground)
+    base_puddle_rect = pygame.Rect(cx - 105 + int(wobble1), cy - 35, 210 - int(wobble1 * 2), 48)
+    pygame.draw.ellipse(base_surf, outer_color, base_puddle_rect)
+
+    # Main rising ooze blob with asymmetrical wobble
+    ooze_rect = pygame.Rect(cx - 70 - int(wobble2), cy - 60, 140 + int(wobble2 * 2), 58)
+    pygame.draw.ellipse(base_surf, inner_color, ooze_rect)
+
+    # Lumpy pseudopods merging into the body
+    pygame.draw.circle(base_surf, inner_color, (cx - 45 + int(wobble1), cy - 30), 26)
+    pygame.draw.circle(base_surf, inner_color, (cx + 40 - int(wobble1), cy - 35), 29)
+    pygame.draw.circle(base_surf, core_color, (cx + int(wobble2), cy - 45), 22)
+
+    # Disgusting internal details: dark gunk nuclei and floating air bubbles
+    dark_gunk = (max(0, r - 80), max(0, g - 80), max(0, b - 80), 210)
+    bubble_color = (255, 255, 255, 200)
+
+    # Semi-digested debris / dark centers inside
+    pygame.draw.circle(base_surf, dark_gunk, (cx - 18, cy - 28), 9)
+    pygame.draw.circle(base_surf, dark_gunk, (cx + 22, cy - 22), 7)
+    pygame.draw.circle(base_surf, dark_gunk, (cx - 4, cy - 42), 6)
+
+    # Pustules / air bubbles trapped inside the jelly
+    pygame.draw.circle(base_surf, bubble_color, (cx - 28, cy - 38), 4)
+    pygame.draw.circle(base_surf, bubble_color, (cx + 14, cy - 32), 5)
+    pygame.draw.circle(base_surf, bubble_color, (cx + 35, cy - 18), 3)
+    pygame.draw.circle(base_surf, bubble_color, (cx - 38, cy - 18), 4)
+    pygame.draw.circle(base_surf, bubble_color, (cx + 2, cy - 52), 3)
+
+    # Creepy, sickly yellow/orange beady eyes (asymmetric, sunken, menacing)
+    eye_color = (255, 210, 40, 255)
+    pupil_color = (40, 15, 5, 255)
+
+    # Left eye
+    lx, ly = cx - 16, cy - 44
+    pygame.draw.circle(base_surf, eye_color, (lx, ly), 5)
+    pygame.draw.circle(base_surf, pupil_color, (lx - 1, ly), 2)
+
+    # Right eye (offset position for an unsettling look)
+    rx, ry = cx + 16, cy - 41
+    pygame.draw.circle(base_surf, eye_color, (rx, ry), 4)
+    pygame.draw.circle(base_surf, pupil_color, (rx + 1, ry), 2)
+
+    # Wet, slimy light sheen across the top ridge
+    sheen_color = (255, 255, 255, 190)
+    pygame.draw.arc(base_surf, sheen_color, (cx - 55, cy - 64, 110, 28), 0.2, 2.9, 3)
+
+    scaled_surf = pygame.transform.smoothscale(base_surf, (target_w, target_h))
+    goblin_ghost_surface_cache[key] = scaled_surf
+    return scaled_surf
