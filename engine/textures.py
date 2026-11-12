@@ -334,6 +334,64 @@ def create_shop_wall_texture():
     return surf
 
 
+def create_mossy_fieldstone_door_texture():
+    """Mossy fieldstone wall with a recessed wooden entrance: town doorways."""
+    tex_size = 256
+    surf = pygame.Surface((tex_size, tex_size))
+    tex_rng = random.Random(56)
+
+    surf.fill((88, 82, 70))
+
+    # Same fieldstone base as texture 3
+    stone_h = 38
+    for row in range(tex_size // stone_h + 1):
+        y = row * stone_h
+        x = -tex_rng.randint(0, 30)
+        while x < tex_size:
+            w = tex_rng.randint(30, 58)
+            h = stone_h - tex_rng.randint(4, 10)
+            c = tex_rng.randint(-16, 14)
+            col = (
+                max(96, min(176, 132 + c)),
+                max(92, min(170, 126 + c)),
+                max(86, min(160, 114 + c)),
+            )
+            rect = (x + 2, y + 2, w - 4, h)
+            pygame.draw.ellipse(surf, col, rect)
+            pygame.draw.ellipse(
+                surf, (min(200, col[0] + 22), min(196, col[1] + 22), min(180, col[2] + 18)),
+                (rect[0] + 4, rect[1] + 3, rect[2] // 2, rect[3] // 3))
+            x += w - tex_rng.randint(0, 8)
+
+    # Subtle moss
+    for _ in range(22):
+        mx, my = tex_rng.randint(0, tex_size - 1), tex_rng.randint(0, tex_size - 1)
+        r = tex_rng.randint(2, 6)
+        shade = tex_rng.randint(-6, 6)
+        moss = (max(84, 104 + shade), max(104, 124 + shade), max(78, 92 + shade))
+        _tiled(surf, lambda ox, oy: pygame.draw.circle(surf, moss, (mx + ox, my + oy), r))
+
+    # Recessed arched wooden door, centered
+    dx, dy, dw, dh = 84, 70, 88, 176
+    # dark recess around the door so it reads as inset
+    pygame.draw.rect(surf, (52, 48, 42), (dx - 10, dy - 10, dw + 20, dh + 10))
+    # arch: stacked shrinking slabs + rounded top
+    pygame.draw.rect(surf, (70, 46, 26), (dx, dy + 24, dw, dh - 24))
+    pygame.draw.ellipse(surf, (70, 46, 26), (dx, dy - 10, dw, 70))
+    pygame.draw.rect(surf, (52, 34, 18), (dx, dy + 24, dw, dh - 24), 3)
+    # vertical planks
+    for i in range(1, 4):
+        pygame.draw.line(surf, (54, 36, 20), (dx + i * dw // 4, dy + 14),
+                         (dx + i * dw // 4, dy + dh), 2)
+    # iron hinges and handle
+    pygame.draw.rect(surf, (90, 90, 96), (dx + 4, dy + 40, 12, 5))
+    pygame.draw.rect(surf, (90, 90, 96), (dx + dw - 16, dy + 40, 12, 5))
+    pygame.draw.circle(surf, (140, 130, 100), (dx + dw - 14, dy + 110), 5)
+    # stone step
+    pygame.draw.rect(surf, (120, 116, 108), (dx - 14, dy + dh - 4, dw + 28, 14))
+    return surf
+
+
 TEXTURES = {
     1: create_running_bond_brick_texture(),
     2: create_organic_texture(),
@@ -341,6 +399,7 @@ TEXTURES = {
     4: create_shop_front_texture(),
     5: create_running_bond_brick_texture_alternative(),
     6: create_shop_wall_texture(),
+    7: create_mossy_fieldstone_door_texture(),
 }
 
 FLOOR_TEXTURES = {

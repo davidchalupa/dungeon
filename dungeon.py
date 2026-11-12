@@ -515,7 +515,7 @@ while running:
                 break
 
             cell_type = WORLD_MAP[mapY][mapX]
-            if cell_type in (1, 3, 4, 6):
+            if cell_type in (1, 3, 4, 6, 7):
                 hit = 1  # Solid wall (brick, stone, or shop front)
             elif cell_type == 2:
                 pass  # Water: ray passes through
@@ -549,6 +549,7 @@ while running:
     default_strips = renderer.TEXTURE_STRIPS[active_texture_id]
     shop_door_strips = renderer.TEXTURE_STRIPS.get(4, default_strips)
     shop_wall_strips = renderer.TEXTURE_STRIPS.get(6, default_strips)
+    town_door_strips = renderer.TEXTURE_STRIPS.get(7, default_strips)
     for x in range(RENDER_WIDTH):
         data = ray_cache[x]
         if data["hit"] != 1:
@@ -579,6 +580,8 @@ while running:
                 wall_strips = shop_door_strips
             elif data["cell_type"] == 6:
                 wall_strips = shop_wall_strips
+            elif data["cell_type"] == 7:
+                wall_strips = town_door_strips
             else:
                 wall_strips = default_strips
             wall_strip = wall_strips[texX]
