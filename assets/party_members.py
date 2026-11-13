@@ -72,6 +72,22 @@ party_members = [
     },
 ]
 
+def get_class_abbrev_str(allowed_classes):
+    """Converts a list of allowed class names into W, R, M format."""
+    if not allowed_classes:
+        return "None"
+    abbrevs = []
+    for c in allowed_classes:
+        c_lower = c.lower()
+        if "warrior" in c_lower:
+            abbrevs.append("W")
+        elif "ranger" in c_lower:
+            abbrevs.append("R")
+        elif "mage" in c_lower:
+            abbrevs.append("M")
+    return ", ".join(abbrevs)
+
+
 HERO_PORTRAIT_SIZE = 96
 
 

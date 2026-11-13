@@ -7,6 +7,7 @@ longsword_item = {
     "name": "Longsword",
     "min_atk": 4,
     "max_atk": 8,
+    "allowed_classes": ["Warrior", "Ranger"],  # W, R
     "path": "images/longsword.png",
 }
 
@@ -14,6 +15,7 @@ dagger_item = {
     "name": "Dagger",
     "min_atk": 2,
     "max_atk": 4,
+    "allowed_classes": ["Warrior", "Ranger", "Mage"],  # W, R, M (All)
     "path": "images/dagger.png",
 }
 
@@ -21,6 +23,7 @@ leather_armor_item = {
     "name": "Leather Armor",
     "min_def": 2,
     "max_def": 3,
+    "allowed_classes": ["Warrior", "Ranger", "Mage"],  # W, R, M (All)
     "path": "images/leather-armor.png",
 }
 
@@ -28,6 +31,7 @@ scale_armor_item = {
     "name": "Scale Armor",
     "min_def": 3,
     "max_def": 5,
+    "allowed_classes": ["Warrior", "Ranger"],  # W, R
     "path": "images/scale-armor.png",
 }
 

@@ -4,6 +4,7 @@ import pygame
 from assets.party_members import party_members, HERO_PORTRAIT_SIZE
 from assets.spells import SPELLS
 from ui.common import VIRTUAL_HEIGHT, get_fonts, get_virtual_mouse_pos
+from assets.party_members import get_class_abbrev_str
 
 # Internal drag-and-drop & mouse state trackers
 _dragged_item = None
@@ -356,17 +357,30 @@ def draw_character_subscreen(surface, hero):
                     silhouette_drop_rect.collidepoint(mouse_pos) and mouse_pos[0] >= sil_center_x)
 
         if is_weapon_drop and item_is_weapon:
-            old_weapon = hero["weapon"]
-            hero["weapon"] = _dragged_item
-            target_placed = True
-            if old_weapon:
-                _return_item(hero, old_weapon, _drag_source)
+            # Check class restriction
+            allowed = _dragged_item.get("allowed_classes", ["Warrior", "Ranger", "Mage"])
+            if hero["class"] in allowed:
+                old_weapon = hero["weapon"]
+                hero["weapon"] = _dragged_item
+                target_placed = True
+                if old_weapon:
+                    _return_item(hero, old_weapon, _drag_source)
+            else:
+                # Class cannot equip this weapon! Return to source / inventory
+                _return_item(hero, _dragged_item, _drag_source)
+                target_placed = True  # handled (rejected)
         elif is_armor_drop and item_is_armor:
-            old_armor = hero.get("armor")
-            hero["armor"] = _dragged_item
-            target_placed = True
-            if old_armor:
-                _return_item(hero, old_armor, _drag_source)
+            allowed = _dragged_item.get("allowed_classes", ["Warrior", "Ranger", "Mage"])
+            if hero["class"] in allowed:
+                old_armor = hero.get("armor")
+                hero["armor"] = _dragged_item
+                target_placed = True
+                if old_armor:
+                    _return_item(hero, old_armor, _drag_source)
+                    _return_item(hero, old_armor, _drag_source)
+            else:
+                _return_item(hero, _dragged_item, _drag_source)
+                target_placed = True
         else:
             # Check inventory slots
             for i, rect in enumerate(inv_slot_rects):
@@ -401,20 +415,29 @@ def draw_character_subscreen(surface, hero):
         hovered_item = hero["weapon"]
         hover_title = f"Weapon: {hero['weapon']['name']}"
         hover_stats = f"Atk: {hero['weapon']['min_atk']}-{hero['weapon']['max_atk']}"
+        allowed_str = get_class_abbrev_str(hero['weapon'].get("allowed_classes", []))
+        hover_classes = f"Classes: {allowed_str}"
     elif armor_slot_rect.collidepoint(mouse_pos) and hero.get("armor"):
         hovered_item = hero["armor"]
         hover_title = f"Armor: {hero['armor']['name']}"
         hover_stats = f"Def: {hero['armor']['min_def']}-{hero['armor']['max_def']}"
+        allowed_str = get_class_abbrev_str(hero['armor'].get("allowed_classes", []))
+        hover_classes = f"Classes: {allowed_str}"
 
     if hovered_item:
         tip_surf_title = font_med.render(hover_title, True, (255, 255, 150))
         tip_surf_stats = font_med.render(hover_stats, True, (200, 200, 200))
-        tip_rect = pygame.Rect(mouse_pos[0] + 10, mouse_pos[1] - 30,
-                               max(tip_surf_title.get_width(), tip_surf_stats.get_width()) + 16, 46)
+        tip_surf_classes = font_med.render(hover_classes, True, (150, 200, 255))
+
+        max_w = max(tip_surf_title.get_width(), tip_surf_stats.get_width(), tip_surf_classes.get_width())
+        tip_rect = pygame.Rect(mouse_pos[0] + 10, mouse_pos[1] - 40, max_w + 16, 64)
+
         pygame.draw.rect(surface, (15, 15, 25), tip_rect)
         pygame.draw.rect(surface, (200, 180, 100), tip_rect, 1)
+
         surface.blit(tip_surf_title, (tip_rect.x + 8, tip_rect.y + 4))
         surface.blit(tip_surf_stats, (tip_rect.x + 8, tip_rect.y + 22))
+        surface.blit(tip_surf_classes, (tip_rect.x + 8, tip_rect.y + 40))
 
     if _dragged_item is not None and "icon" in _dragged_item:
         surface.blit(_dragged_item["icon"], (mouse_pos[0] - 16, mouse_pos[1] - 16))
