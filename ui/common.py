@@ -6,6 +6,8 @@ font_med = None
 font_large = None
 font_title = None
 
+global_party_portrait_rects = []
+
 # Load Fonts for UI
 def initialize_fonts():
     global font_med, font_large, font_title
@@ -19,11 +21,18 @@ def get_fonts():
     return font_med, font_large, font_title
 
 
-def get_virtual_mouse_pos(surface):
-    """Maps raw window mouse position to virtual (840x740) surface coordinates."""
-    raw_x, raw_y = pygame.mouse.get_pos()
+def check_party_portrait_click(raw_pos, surface):
+    """Checks if a click hit any global party portrait and returns the hero index (0-3) or None."""
+    virt_pos = get_virtual_mouse_pos_from_raw(raw_pos, surface)
+    for i, rect in enumerate(global_party_portrait_rects):
+        if rect.collidepoint(virt_pos):
+            return i
+    return None
 
-    # Get the actual current window size from pygame display or surface
+
+def get_virtual_mouse_pos_from_raw(raw_pos, surface):
+    """Maps raw window mouse position to virtual (840x740) surface coordinates."""
+    raw_x, raw_y = raw_pos
     win_w, win_h = pygame.display.get_surface().get_size()
 
     virtual_aspect = VIRTUAL_WIDTH / VIRTUAL_HEIGHT
@@ -40,12 +49,9 @@ def get_virtual_mouse_pos(surface):
         scale_x = 0
         scale_y = (win_h - scaled_h) // 2
 
-    # Prevent division by zero
     if scaled_w <= 0 or scaled_h <= 0:
-        return pygame.mouse.get_pos()
+        return raw_pos
 
-    # Scale raw coordinates relative to the letterboxed game surface display rect
     virt_x = int((raw_x - scale_x) * (VIRTUAL_WIDTH / scaled_w))
     virt_y = int((raw_y - scale_y) * (VIRTUAL_HEIGHT / scaled_h))
-
     return (virt_x, virt_y)

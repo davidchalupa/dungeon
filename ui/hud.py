@@ -3,7 +3,7 @@ import pygame
 
 from assets.party_members import party_members, HERO_PORTRAIT_SIZE
 from assets.spells import SPELLS
-from ui.common import VIRTUAL_HEIGHT, get_fonts, get_virtual_mouse_pos
+from ui.common import VIRTUAL_HEIGHT, get_fonts, get_virtual_mouse_pos_from_raw, global_party_portrait_rects
 from assets.party_members import get_class_abbrev_str
 
 # Internal drag-and-drop & mouse state trackers
@@ -16,13 +16,13 @@ armor_slot_rect = pygame.Rect(0, 0, 0, 0)
 weapon_slot_rect = pygame.Rect(0, 0, 0, 0)
 silhouette_drop_rect = pygame.Rect(0, 0, 0, 0)
 inv_slot_rects = []
-global_party_portrait_rects = []
 
 
 # ==========================================
 # PARTY UI RENDER (Seamless Bottom Bar)
 # ==========================================
 def draw_party_ui(surface, current_actor=None, targeting_active=False):
+    global_party_portrait_rects.clear()
     font_med, font_large, _ = get_fonts()
     w = surface.get_width()
     ui_top = 546
@@ -325,7 +325,7 @@ def draw_character_subscreen(surface, hero):
     # ==========================================
     # Get window size from the active surface or display
     window_size = surface.get_size()
-    mouse_pos = get_virtual_mouse_pos(window_size)
+    mouse_pos = get_virtual_mouse_pos_from_raw(pygame.mouse.get_pos(), window_size)
 
     mouse_buttons = pygame.mouse.get_pressed()
     left_clicked = mouse_buttons[0] and not _prev_mouse_pressed

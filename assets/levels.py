@@ -65,7 +65,7 @@ LEVELS = {
         ],
         "init_pos": {
             "x": 1.5,
-            "y": 8.5,
+            "y": 1.5,
         },
         "opponents": [],
     },

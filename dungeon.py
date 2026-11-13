@@ -20,7 +20,7 @@ from engine.procedural_sprites import (
     get_cached_procedural_slime, SLIME_ANIM_PHASES,
 )
 from ui.hud import draw_party_ui, draw_character_subscreen, draw_spell_book
-from ui.common import VIRTUAL_HEIGHT, VIRTUAL_WIDTH, initialize_fonts
+from ui.common import VIRTUAL_HEIGHT, VIRTUAL_WIDTH, initialize_fonts, check_party_portrait_click
 from ui.map import draw_map
 
 
@@ -234,6 +234,39 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:  # Left click
+                clicked_idx = check_party_portrait_click(event.pos, game_surface)
+                if clicked_idx is not None:
+                    target_hero = party_members[clicked_idx]
+
+                    # 1. Spell Targeting Mode
+                    if targeting_spell is not None:
+                        spell = SPELLS[targeting_spell]
+                        spellcaster["mp"] -= spell["cost"]
+                        target_hero["hp"] = min(target_hero["max_hp"], target_hero["hp"] + spell["healing"])
+                        target_hero["heal_flash"] = 30
+
+                        combat_message = f"{spellcaster['name']} casts Heal on {target_hero['name']} for {spell['healing']} HP!"
+                        if in_combat:
+                            combat.turn_index += 1
+
+                        targeting_spell = None
+                        spellcaster = None
+
+                    # 2. Character Subscreen Active (Switch active character sheet view)
+                    elif viewing_character is not None:
+                        viewing_character = clicked_idx
+
+                    # 3. Normal Exploration / Selection Mode
+                    elif not in_combat and viewing_spell_book is None and not map_visible and not resting_confirmation:
+                        if target_hero["hp"] > 0:
+                            if selected_hero_index == clicked_idx:
+                                viewing_character = clicked_idx  # Open sheet if clicked again
+                            else:
+                                selected_hero_index = clicked_idx  # Select hero
+                        else:
+                            combat_message = f"{target_hero['name']} is fainted and cannot be selected!"
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_F11:
                 is_fullscreen = not is_fullscreen
