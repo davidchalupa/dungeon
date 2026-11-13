@@ -257,6 +257,7 @@ while running:
                     # 2. Character Subscreen Active (Switch active character sheet view)
                     elif viewing_character is not None:
                         viewing_character = clicked_idx
+                        selected_hero_index = clicked_idx  # Keep selected hero in sync
 
                     # 3. Normal Exploration / Selection Mode
                     elif not in_combat and viewing_spell_book is None and not map_visible and not resting_confirmation:
@@ -327,14 +328,13 @@ while running:
             elif viewing_character is not None:
                 if event.key == pygame.K_ESCAPE:
                     viewing_character = None
-                elif event.key == pygame.K_1:
-                    viewing_character = 0
-                elif event.key == pygame.K_2:
-                    viewing_character = 1
-                elif event.key == pygame.K_3:
-                    viewing_character = 2
-                elif event.key == pygame.K_4:
-                    viewing_character = 3
+                else:
+                    key_map = {pygame.K_1: 0, pygame.K_2: 1, pygame.K_3: 2, pygame.K_4: 3}
+                    if event.key in key_map:
+                        viewing_character = key_map[event.key]
+                # Sync selected hero only if we didn't exit via ESC
+                if viewing_character is not None:
+                    selected_hero_index = viewing_character
             else:
                 if not in_combat and targeting_spell is None:
                     key_mapping = {
