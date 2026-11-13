@@ -3,7 +3,7 @@ import pygame
 
 from assets.party_members import party_members, HERO_PORTRAIT_SIZE
 from assets.spells import SPELLS
-from ui.common import VIRTUAL_HEIGHT, get_fonts
+from ui.common import VIRTUAL_HEIGHT, get_fonts, get_virtual_mouse_pos
 
 # Internal drag-and-drop & mouse state trackers
 _dragged_item = None
@@ -317,7 +317,10 @@ def draw_character_subscreen(surface, hero):
     # ==========================================
     # MOUSE INPUT POLLING & DRAG/DROP LOGIC
     # ==========================================
-    mouse_pos = pygame.mouse.get_pos()
+    # Get window size from the active surface or display
+    window_size = surface.get_size()
+    mouse_pos = get_virtual_mouse_pos(window_size)
+
     mouse_buttons = pygame.mouse.get_pressed()
     left_clicked = mouse_buttons[0] and not _prev_mouse_pressed
     left_released = not mouse_buttons[0] and _prev_mouse_pressed
@@ -417,7 +420,7 @@ def draw_character_subscreen(surface, hero):
         surface.blit(_dragged_item["icon"], (mouse_pos[0] - 16, mouse_pos[1] - 16))
 
     footer_txt = font_med.render("Drag items to equip/unequip/inventory | [ESC] Return", True, (170, 170, 170))
-    surface.blit(footer_txt, footer_txt.get_rect(center=(bg_rect.centerx, 545)))
+    surface.blit(footer_txt, footer_txt.get_rect(center=(bg_rect.centerx, 555)))
 
 
 def _return_item(hero, item, source):
