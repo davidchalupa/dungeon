@@ -16,6 +16,7 @@ armor_slot_rect = pygame.Rect(0, 0, 0, 0)
 weapon_slot_rect = pygame.Rect(0, 0, 0, 0)
 silhouette_drop_rect = pygame.Rect(0, 0, 0, 0)
 inv_slot_rects = []
+global_party_portrait_rects = []
 
 
 # ==========================================
@@ -40,6 +41,10 @@ def draw_party_ui(surface, current_actor=None, targeting_active=False):
     for i, hero in enumerate(party_members):
         slot_x = start_x + i * spacing
         cx = slot_x + portrait_offset
+
+        # Create portrait rect in virtual coordinates
+        portrait_rect = pygame.Rect(cx, start_y, HERO_PORTRAIT_SIZE, HERO_PORTRAIT_SIZE)
+        global_party_portrait_rects.append(portrait_rect)
 
         surface.blit(hero["avatar"], (cx, start_y))
 
@@ -344,73 +349,96 @@ def draw_character_subscreen(surface, hero):
                     hero["inventory"][i] = None
                     break
 
-    # Mouse up (Drop item or unequip to inventory)
+    # Mouse up (Drop item or unequip / transfer to party member)
     elif left_released and _dragged_item is not None:
         target_placed = False
+        target_hero = None
 
-        item_is_weapon = "min_atk" in _dragged_item or _dragged_item.get("type") == "weapon"
-        item_is_armor = "min_def" in _dragged_item or _dragged_item.get("type") == "armor"
+        # 1. Check if dropped on any global party portrait (bottom HUD)
+        for p_idx, p_rect in enumerate(global_party_portrait_rects):
+            if p_rect.collidepoint(mouse_pos):
+                target_hero = party_members[p_idx]
+                break
 
-        is_weapon_drop = weapon_slot_rect.collidepoint(mouse_pos) or (
-                    silhouette_drop_rect.collidepoint(mouse_pos) and mouse_pos[0] < sil_center_x)
-        is_armor_drop = armor_slot_rect.collidepoint(mouse_pos) or (
-                    silhouette_drop_rect.collidepoint(mouse_pos) and mouse_pos[0] >= sil_center_x)
-
-        if is_weapon_drop and item_is_weapon:
-            # Check class restriction
-            allowed = _dragged_item.get("allowed_classes", ["Warrior", "Ranger", "Mage"])
-            if hero["class"] in allowed:
-                old_weapon = hero["weapon"]
-                hero["weapon"] = _dragged_item
-                target_placed = True
-                if old_weapon:
-                    _return_item(hero, old_weapon, _drag_source)
-            else:
-                # Class cannot equip this weapon! Return to source / inventory
-                _return_item(hero, _dragged_item, _drag_source)
-                target_placed = True  # handled (rejected)
-        elif is_armor_drop and item_is_armor:
-            allowed = _dragged_item.get("allowed_classes", ["Warrior", "Ranger", "Mage"])
-            if hero["class"] in allowed:
-                old_armor = hero.get("armor")
-                hero["armor"] = _dragged_item
-                target_placed = True
-                if old_armor:
-                    _return_item(hero, old_armor, _drag_source)
-                    _return_item(hero, old_armor, _drag_source)
-            else:
+        if target_hero is not None:
+            # Transfer item to target hero's inventory
+            placed = False
+            for i in range(10):
+                if target_hero["inventory"][i] is None:
+                    target_hero["inventory"][i] = _dragged_item
+                    placed = True
+                    target_placed = True
+                    break
+            if not placed:
+                # Target hero inventory is full, return item to source
                 _return_item(hero, _dragged_item, _drag_source)
                 target_placed = True
         else:
-            # Check inventory slots
-            for i, rect in enumerate(inv_slot_rects):
-                if rect.collidepoint(mouse_pos):
-                    old_inv_item = hero["inventory"][i]
-                    hero["inventory"][i] = _dragged_item
-                    target_placed = True
-                    if old_inv_item:
-                        _return_item(hero, old_inv_item, _drag_source)
-                    break
+            # Fall back to your existing weapon/armor/inventory slot drop logic...
+            item_is_weapon = "min_atk" in _dragged_item or _dragged_item.get("type") == "weapon"
+            item_is_armor = "min_def" in _dragged_item or _dragged_item.get("type") == "armor"
 
-        # If dropped outside valid slots (unequipping or cancelling), auto-stow into inventory!
-        if not target_placed:
-            placed_in_inv = False
-            for i in range(10):
-                if hero["inventory"][i] is None:
-                    hero["inventory"][i] = _dragged_item
-                    placed_in_inv = True
-                    break
-            # Fallback to original source if inventory is completely full
-            if not placed_in_inv:
-                _return_item(hero, _dragged_item, _drag_source)
+            is_weapon_drop = weapon_slot_rect.collidepoint(mouse_pos) or (
+                    silhouette_drop_rect.collidepoint(mouse_pos) and mouse_pos[0] < sil_center_x)
+            is_armor_drop = armor_slot_rect.collidepoint(mouse_pos) or (
+                    silhouette_drop_rect.collidepoint(mouse_pos) and mouse_pos[0] >= sil_center_x)
+
+            if is_weapon_drop and item_is_weapon:
+                allowed = _dragged_item.get("allowed_classes", ["Warrior", "Ranger", "Mage"])
+                if hero["class"] in allowed:
+                    old_weapon = hero["weapon"]
+                    hero["weapon"] = _dragged_item
+                    target_placed = True
+                    if old_weapon:
+                        _return_item(hero, old_weapon, _drag_source)
+                else:
+                    _return_item(hero, _dragged_item, _drag_source)
+                    target_placed = True
+
+            elif is_armor_drop and item_is_armor:
+                allowed = _dragged_item.get("allowed_classes", ["Warrior", "Ranger", "Mage"])
+                if hero["class"] in allowed:
+                    old_armor = hero.get("armor")
+                    hero["armor"] = _dragged_item
+                    target_placed = True
+                    if old_armor:
+                        _return_item(hero, old_armor, _drag_source)
+                else:
+                    _return_item(hero, _dragged_item, _drag_source)
+                    target_placed = True
+            else:
+                for i, rect in enumerate(inv_slot_rects):
+                    if rect.collidepoint(mouse_pos):
+                        old_inv_item = hero["inventory"][i]
+                        hero["inventory"][i] = _dragged_item
+                        target_placed = True
+                        if old_inv_item:
+                            _return_item(hero, old_inv_item, _drag_source)
+                        break
+
+            if not target_placed:
+                placed_in_inv = False
+                for i in range(10):
+                    if hero["inventory"][i] is None:
+                        hero["inventory"][i] = _dragged_item
+                        placed_in_inv = True
+                        break
+                if not placed_in_inv:
+                    _return_item(hero, _dragged_item, _drag_source)
 
         _dragged_item = None
         _drag_source = None
 
     _prev_mouse_pressed = mouse_buttons[0]
 
-    # Mouse Hover Tooltips for Worn Equipment
+    # ==========================================
+    # MOUSE HOVER TOOLTIPS (Equipment & Inventory)
+    # ==========================================
     hovered_item = None
+    hover_title = ""
+    hover_stats = ""
+    hover_classes = ""
+
     if weapon_slot_rect.collidepoint(mouse_pos) and hero["weapon"]:
         hovered_item = hero["weapon"]
         hover_title = f"Weapon: {hero['weapon']['name']}"
@@ -423,6 +451,25 @@ def draw_character_subscreen(surface, hero):
         hover_stats = f"Def: {hero['armor']['min_def']}-{hero['armor']['max_def']}"
         allowed_str = get_class_abbrev_str(hero['armor'].get("allowed_classes", []))
         hover_classes = f"Classes: {allowed_str}"
+    else:
+        # Check inventory slots for hovers
+        for i, rect in enumerate(inv_slot_rects):
+            if rect.collidepoint(mouse_pos) and hero["inventory"][i]:
+                item = hero["inventory"][i]
+                hovered_item = item
+                hover_title = f"{item['name']}"
+
+                # Format stats based on item type
+                if "min_atk" in item:
+                    hover_stats = f"Atk: {item['min_atk']}-{item['max_atk']}"
+                elif "min_def" in item:
+                    hover_stats = f"Def: {item['min_def']}-{item['max_def']}"
+                else:
+                    hover_stats = "Item"
+
+                allowed_str = get_class_abbrev_str(item.get("allowed_classes", []))
+                hover_classes = f"Classes: {allowed_str}"
+                break
 
     if hovered_item:
         tip_surf_title = font_med.render(hover_title, True, (255, 255, 150))
@@ -431,6 +478,10 @@ def draw_character_subscreen(surface, hero):
 
         max_w = max(tip_surf_title.get_width(), tip_surf_stats.get_width(), tip_surf_classes.get_width())
         tip_rect = pygame.Rect(mouse_pos[0] + 10, mouse_pos[1] - 40, max_w + 16, 64)
+
+        # Keep tooltip on-screen if near right/bottom edges
+        if tip_rect.right > surface.get_width():
+            tip_rect.x = mouse_pos[0] - tip_rect.width - 10
 
         pygame.draw.rect(surface, (15, 15, 25), tip_rect)
         pygame.draw.rect(surface, (200, 180, 100), tip_rect, 1)
