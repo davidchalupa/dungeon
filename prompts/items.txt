@@ -1,8 +1,11 @@
 longsword
 "Pixel art icon of a classic iron longsword, simple crossguard, wooden grip, pommel, oriented diagonally from bottom-left to top-right. Clean outlines, high quality pixel art, suitable for a 16-bit RPG inventory. Size: 40x40 pixels. White background."
 
-crude sword
+rusty sword
 "Pixel art icon of a crude, worn starter sword, notched rusty blade, uneven crossguard, cloth-wrapped grip, oriented diagonally from bottom-left to top-right. Battered look, 16-bit RPG inventory icon. Size: 40x40 pixels. White background."
+
+crude sword
+"Pixel art icon of a crude iron sword, slightly tarnished brownish blade, simple crossguard, wooden grip, oriented diagonally from bottom-left to top-right. Clean outlines, high quality 16-bit RPG inventory icon. Size: 40x40 pixels. White background."
 
 dagger
 "Pixel art icon of a classic iron dagger, short sharp blade, simple crossguard, leather-wrapped grip, small pommel, oriented diagonally from bottom-left to top-right. Clean outlines, high quality pixel art, suitable for a 16-bit RPG inventory. Size: 40x40 pixels. White background."
