@@ -1,0 +1,20 @@
+longsword
+"Pixel art icon of a classic iron longsword, simple crossguard, wooden grip, pommel, oriented diagonally from bottom-left to top-right. Clean outlines, high quality pixel art, suitable for a 16-bit RPG inventory. Size: 40x40 pixels. White background."
+
+crude sword
+"Pixel art icon of a crude, worn starter sword, notched rusty blade, uneven crossguard, cloth-wrapped grip, oriented diagonally from bottom-left to top-right. Battered look, 16-bit RPG inventory icon. Size: 40x40 pixels. White background."
+
+dagger
+"Pixel art icon of a classic iron dagger, short sharp blade, simple crossguard, leather-wrapped grip, small pommel, oriented diagonally from bottom-left to top-right. Clean outlines, high quality pixel art, suitable for a 16-bit RPG inventory. Size: 40x40 pixels. White background."
+
+leather armor
+Pixel art icon of a classic leather armor chestpiece, fitted studded leather jerkin, natural brown leather texture with visible stitching and metal rivets, centered facing forward. Clean outlines, high quality pixel art, suitable for a 16-bit RPG inventory. Size: 40x40 pixels. White background.
+
+scale armor
+Pixel art icon of a classic scale armor chestpiece, interlocking metal scale plates over a leather tunic, polished bronze or steel scales reflecting light, centered facing forward. Clean outlines, high quality pixel art, suitable for a 16-bit RPG inventory. Size: 40x40 pixels. White background.
+
+steel scale armor
+Pixel art icon of a classic scale armor chestpiece, interlocking metal scale plates over a leather tunic, polished gray steel scales reflecting light, centered facing forward. Clean outlines, high quality pixel art, suitable for a 16-bit RPG inventory. Size: 40x40 pixels. White background.
+
+chain mail
+Pixel art icon of a classic chain mail chestpiece, interlocking iron mesh over a padded tunic, metallic silver-gray shine with subtle highlights, centered facing forward. Clean outlines, high quality pixel art, suitable for a 16-bit RPG inventory. Size: 40x40 pixels. White background.

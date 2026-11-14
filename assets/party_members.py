@@ -1,5 +1,5 @@
 import pygame
-from assets.items import dagger_item, longsword_item, leather_armor_item, scale_armor_item
+from assets.items import dagger_item, crude_sword_item, leather_armor_item, scale_armor_item
 
 party_members = [
     {
@@ -14,7 +14,7 @@ party_members = [
         "max_hp": 10,
         "mp": 0,
         "max_mp": 0,
-        "weapon": longsword_item,
+        "weapon": crude_sword_item,
         "armor": scale_armor_item,
         "spells": [],
         "inventory": [None] * 10,
@@ -48,7 +48,7 @@ party_members = [
         "max_hp": 10,
         "mp": 0,
         "max_mp": 0,
-        "weapon": longsword_item,
+        "weapon": crude_sword_item,
         "armor": scale_armor_item,
         "spells": [],
         "inventory": [None] * 10,
@@ -65,7 +65,7 @@ party_members = [
         "max_hp": 8,
         "mp": 3,
         "max_mp": 3,
-        "weapon": longsword_item,
+        "weapon": crude_sword_item,
         "armor": scale_armor_item,
         "spells": ["Magic Arrow", "Heal"],
         "inventory": [None] * 10,

@@ -1,0 +1,18 @@
+please give me an image for my game prototype, image size 1024x1024 pixels
+
+    Male Warrior (First Image):
+
+        portrait headshot - a male warrior face, simple pixel art style, suitable to show on the main screen as a party member in an rpg game
+
+    Female Mage (Original Version):
+
+        portrait headshot - a female mage face, simple pixel art style, suitable to show on the main screen as a party member in an rpg game
+
+    Female Ranger (Third Image):
+
+        portrait headshot - a female ranger face, simple pixel art style, suitable to show on the main screen as a party member in an rpg game
+
+    Female Mage (Updated Version):
+
+        portrait headshot - a female mage face with a more oval face shape and vibrant red hair, simple pixel art style, suitable to show on the main screen as a party member in an rpg game
+

@@ -3,10 +3,18 @@ import pygame
 # ==========================================
 # ITEM DEFINITIONS & ASSETS
 # ==========================================
-longsword_item = {
-    "name": "Longsword",
+crude_sword_item = {
+    "name": "Crude sword",
     "min_atk": 4,
     "max_atk": 8,
+    "allowed_classes": ["Warrior", "Ranger"],  # W, R
+    "path": "images/crudesword.png",
+}
+
+longsword_item = {
+    "name": "Longsword",
+    "min_atk": 6,
+    "max_atk": 10,
     "allowed_classes": ["Warrior", "Ranger"],  # W, R
     "path": "images/longsword.png",
 }
@@ -38,7 +46,7 @@ scale_armor_item = {
 
 def initialize_item_assets():
     """Loads item icons after Pygame display mode has been initialized."""
-    items = [longsword_item, dagger_item, leather_armor_item, scale_armor_item]
+    items = [crude_sword_item, longsword_item, dagger_item, leather_armor_item, scale_armor_item]
     for item in items:
         try:
             surf = pygame.image.load(item["path"]).convert_alpha()
