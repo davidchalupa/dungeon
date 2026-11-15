@@ -1,3 +1,6 @@
+<div align="center"><img src="https://davidchalupa.github.io/dungeon_game.png" width="588" alt="Dungeon game" /></div>
+
+
 ### Installation on Linux
 
 To get `pygame` working on Linux, one has to first run:
