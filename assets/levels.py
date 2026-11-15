@@ -75,7 +75,7 @@ LEVELS = {
         "opponents": [],
     },
     2: {
-        "name": "Level 1: The Stone Keep",
+        "name": "The Stone Keep",
         "texture_id": 1,
         "map": [
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -96,7 +96,7 @@ LEVELS = {
         ],
     },
     3: {
-        "name": "Level 2: The Deep Cavern",
+        "name": "The Deep Cavern",
         "texture_id": 2,
         "map": [
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -130,7 +130,7 @@ LEVELS = {
         ],
     },
     4: {
-        "name": "Level 3: The Sunlit Clearing",
+        "name": "The Sunlit Clearing",
         "texture_id": 2,
         "floor_texture_id": 1,
         "sky": True,
@@ -152,7 +152,7 @@ LEVELS = {
         ],
     },
     5: {
-        "name": "Level 4: The Island Outpost",
+        "name": "The Island Outpost",
         "texture_id": 2,
         "floor_texture_id": 1,
         "sky": True,
@@ -182,7 +182,7 @@ LEVELS = {
         ],
     },
     6: {
-        "name": "Level 6: The Meadow House",
+        "name": "The Meadow House",
         "texture_id": 6,
         "floor_texture_id": 1,
         "sky": True,
