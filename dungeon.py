@@ -393,12 +393,28 @@ while running:
                     elif event.key == pygame.K_m:  # Toggle map
                         map_visible = True
                     elif event.key == pygame.K_SPACE:
-                        # Check if player is standing in front of or on a door cell (type 4, 7, or 8)
-                        cell_x, cell_y = int(posX + dirX * 0.5), int(posY + dirY * 0.5)
-                        if 0 <= cell_x < len(WORLD_MAP[0]) and 0 <= cell_y < len(WORLD_MAP):
-                            if WORLD_MAP[cell_y][cell_x] in (4, 7, 8):
+                        # Check ahead incrementally up to 2.0 units for an interactive door
+                        target_cell = None
+                        for dist in [0.5, 1.0, 1.5, 2.0]:
+                            cx = int(posX + dirX * dist)
+                            cy = int(posY + dirY * dist)
+                            if 0 <= cx < len(WORLD_MAP[0]) and 0 <= cy < len(WORLD_MAP):
+                                if WORLD_MAP[cy][cx] in (4, 7, 8):
+                                    target_cell = (cx, cy)
+                                    break
+
+                        if target_cell:
+                            doors_config = level_data.get("doors", {})
+                            action = doors_config.get(target_cell)
+                            if action == "blacksmith":
                                 shop_visible = True
                                 combat_message = "Entered the Blacksmith Shop."
+                            elif action:
+                                combat_message = f"This door leads to {action} (coming soon!)."
+                            else:
+                                combat_message = "This door is locked or leads nowhere."
+                        else:
+                            combat_message = "Nothing to interact with nearby."
 
                 if in_combat and current_opponent and current_opponent["alive"]:
                     if current_actor and current_actor != current_opponent:
