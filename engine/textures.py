@@ -392,6 +392,70 @@ def create_mossy_fieldstone_door_texture():
     return surf
 
 
+def create_town_gate_texture():
+    """Fortified town gate: wide double doors, crenellated header, heavy iron."""
+    tex_size = 256
+    surf = pygame.Surface((tex_size, tex_size))
+    tex_rng = random.Random(57)
+
+    surf.fill((88, 82, 70))
+
+    # Fieldstone base (same recipe as textures 3 and 7)
+    stone_h = 38
+    for row in range(tex_size // stone_h + 1):
+        y = row * stone_h
+        x = -tex_rng.randint(0, 30)
+        while x < tex_size:
+            w = tex_rng.randint(30, 58)
+            h = stone_h - tex_rng.randint(4, 10)
+            c = tex_rng.randint(-16, 14)
+            col = (
+                max(96, min(176, 132 + c)),
+                max(92, min(170, 126 + c)),
+                max(86, min(160, 114 + c)),
+            )
+            rect = (x + 2, y + 2, w - 4, h)
+            pygame.draw.ellipse(surf, col, rect)
+            pygame.draw.ellipse(
+                surf, (min(200, col[0] + 22), min(196, col[1] + 22), min(180, col[2] + 18)),
+                (rect[0] + 4, rect[1] + 3, rect[2] // 2, rect[3] // 3))
+            x += w - tex_rng.randint(0, 8)
+
+    # Crenellated stone header across the top: instantly reads "gate", not "door"
+    pygame.draw.rect(surf, (118, 114, 106), (0, 0, tex_size, 34))
+    for mx in range(6, tex_size, 44):
+        pygame.draw.rect(surf, (134, 130, 122), (mx, 0, 30, 20))
+        pygame.draw.rect(surf, (70, 66, 60), (mx, 18, 30, 4))
+
+    # Wide recess: the opening spans most of the wall face
+    pygame.draw.rect(surf, (48, 44, 38), (24, 34, tex_size - 48, tex_size - 34))
+
+    # Two massive door leaves
+    gate_wood = (74, 48, 27)
+    pygame.draw.rect(surf, gate_wood, (30, 60, 96, 196))
+    pygame.draw.rect(surf, gate_wood, (130, 60, 96, 196))
+    # arch the top of the opening
+    pygame.draw.ellipse(surf, gate_wood, (30, 34, 96, 60))
+    pygame.draw.ellipse(surf, gate_wood, (130, 34, 96, 60))
+    # plank lines per leaf
+    for lx in (30, 130):
+        for i in (1, 2):
+            pygame.draw.line(surf, (52, 34, 19), (lx + i * 32, 70), (lx + i * 32, 256), 2)
+    # heavy iron hinges near the outer edges
+    for hy in (90, 150, 210):
+        pygame.draw.rect(surf, (80, 80, 88), (34, hy, 60, 9))
+        pygame.draw.rect(surf, (80, 80, 88), (162, hy, 60, 9))
+    # big central iron bands where the leaves meet
+    for by in (100, 180):
+        pygame.draw.rect(surf, (95, 95, 104), (120, by, 16, 10))
+    # ring handles, one per leaf
+    pygame.draw.circle(surf, (160, 150, 110), (108, 160), 10, 4)
+    pygame.draw.circle(surf, (160, 150, 110), (148, 160), 10, 4)
+    # stone threshold
+    pygame.draw.rect(surf, (126, 122, 114), (20, 246, tex_size - 40, 10))
+    return surf
+
+
 TEXTURES = {
     1: create_running_bond_brick_texture(),
     2: create_organic_texture(),
@@ -400,6 +464,7 @@ TEXTURES = {
     5: create_running_bond_brick_texture_alternative(),
     6: create_shop_wall_texture(),
     7: create_mossy_fieldstone_door_texture(),
+    8: create_town_gate_texture(),
 }
 
 FLOOR_TEXTURES = {

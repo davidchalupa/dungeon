@@ -89,6 +89,8 @@ def draw_map(surface, world_map, player_pos, dir_vec, opponents, level_name="The
                             color = (90, 90, 110)  # Walls (brick, stone, shop wall)
                         elif cell_type in (4, 7):
                             color = (150, 105, 60)  # Doorways (shop front, town door)
+                        elif cell_type == 8:
+                            color = (110, 110, 125)  # Town gate
                         else:
                             color = floor_color  # Open floor
 
