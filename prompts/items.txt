@@ -21,3 +21,6 @@ Pixel art icon of a classic scale armor chestpiece, interlocking metal scale pla
 
 chain mail
 Pixel art icon of a classic chain mail chestpiece, interlocking iron mesh over a padded tunic, metallic silver-gray shine with subtle highlights, centered facing forward. Clean outlines, high quality pixel art, suitable for a 16-bit RPG inventory. Size: 40x40 pixels. White background.
+
+bronze ring
+"Pixel art icon of a classic bronze ring, simple circular metal band, warm brownish-gold metallic sheen with subtle highlights, slightly angled three-quarter view, centered. Clean outlines, high quality pixel art, suitable for a 16-bit RPG inventory. Size: 40x40 pixels. White background."

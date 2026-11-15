@@ -1,5 +1,5 @@
 import pygame
-from assets.items import dagger_item, crude_sword_item, leather_armor_item, scale_armor_item
+from assets.items import dagger_item, crude_sword_item, leather_armor_item, scale_armor_item, bronze_ring_item
 
 party_members = [
     {
@@ -34,7 +34,7 @@ party_members = [
         "weapon": dagger_item,
         "armor": leather_armor_item,
         "spells": ["Magic Arrow", "Heal"],
-        "inventory": [None] * 10,
+        "inventory": [bronze_ring_item, None, None, None, None, None, None, None, None, None],
     },
     {
         "name": "Reece",

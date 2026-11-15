@@ -464,6 +464,8 @@ def draw_character_subscreen(surface, hero):
                     hover_stats = f"Atk: {item['min_atk']}-{item['max_atk']}"
                 elif "min_def" in item:
                     hover_stats = f"Def: {item['min_def']}-{item['max_def']}"
+                elif item.get("type") == "ring":
+                    hover_stats = "Accessory (Ring)"
                 else:
                     hover_stats = "Item"
 

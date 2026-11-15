@@ -10,7 +10,6 @@ crude_sword_item = {
     "allowed_classes": ["Warrior", "Ranger"],  # W, R
     "path": "images/crudesword.png",
 }
-
 longsword_item = {
     "name": "Longsword",
     "min_atk": 6,
@@ -18,7 +17,6 @@ longsword_item = {
     "allowed_classes": ["Warrior", "Ranger"],  # W, R
     "path": "images/longsword.png",
 }
-
 dagger_item = {
     "name": "Dagger",
     "min_atk": 2,
@@ -26,7 +24,6 @@ dagger_item = {
     "allowed_classes": ["Warrior", "Ranger", "Mage"],  # W, R, M (All)
     "path": "images/dagger.png",
 }
-
 leather_armor_item = {
     "name": "Leather Armor",
     "min_def": 2,
@@ -34,7 +31,6 @@ leather_armor_item = {
     "allowed_classes": ["Warrior", "Ranger", "Mage"],  # W, R, M (All)
     "path": "images/leather-armor.png",
 }
-
 scale_armor_item = {
     "name": "Scale Armor",
     "min_def": 3,
@@ -42,11 +38,17 @@ scale_armor_item = {
     "allowed_classes": ["Warrior", "Ranger"],  # W, R
     "path": "images/scale-armor.png",
 }
+bronze_ring_item = {
+    "name": "Bronze Ring",
+    "type": "ring",
+    "allowed_classes": ["Warrior", "Ranger", "Mage"],  # All classes
+    "path": "images/bronzering.png",
+}
 
 
 def initialize_item_assets():
     """Loads item icons after Pygame display mode has been initialized."""
-    items = [crude_sword_item, longsword_item, dagger_item, leather_armor_item, scale_armor_item]
+    items = [crude_sword_item, longsword_item, dagger_item, leather_armor_item, scale_armor_item, bronze_ring_item]
     for item in items:
         try:
             surf = pygame.image.load(item["path"]).convert_alpha()
