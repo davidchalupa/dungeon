@@ -1,5 +1,5 @@
 import pygame
-from assets.items import dagger_item, crude_sword_item, leather_armor_item, scale_armor_item, bronze_ring_item
+from assets.items import get_item
 
 party_members = [
     {
@@ -14,8 +14,8 @@ party_members = [
         "max_hp": 10,
         "mp": 0,
         "max_mp": 0,
-        "weapon": crude_sword_item,
-        "armor": scale_armor_item,
+        "weapon": get_item("crude_sword"),
+        "armor": get_item("scale_armor"),
         "spells": [],
         "inventory": [None] * 10,
     },
@@ -31,10 +31,10 @@ party_members = [
         "max_hp": 5,
         "mp": 10,
         "max_mp": 10,
-        "weapon": dagger_item,
-        "armor": leather_armor_item,
+        "weapon": get_item("dagger"),
+        "armor": get_item("leather_armor"),
         "spells": ["Magic Arrow", "Heal"],
-        "inventory": [bronze_ring_item, None, None, None, None, None, None, None, None, None],
+        "inventory": [get_item("bronze_ring"), None, None, None, None, None, None, None, None, None],
     },
     {
         "name": "Reece",
@@ -48,8 +48,8 @@ party_members = [
         "max_hp": 10,
         "mp": 0,
         "max_mp": 0,
-        "weapon": crude_sword_item,
-        "armor": scale_armor_item,
+        "weapon": get_item("crude_sword"),
+        "armor": get_item("scale_armor"),
         "spells": [],
         "inventory": [None] * 10,
     },
@@ -65,8 +65,8 @@ party_members = [
         "max_hp": 8,
         "mp": 3,
         "max_mp": 3,
-        "weapon": crude_sword_item,
-        "armor": scale_armor_item,
+        "weapon": get_item("crude_sword"),
+        "armor": get_item("scale_armor"),
         "spells": ["Magic Arrow", "Heal"],
         "inventory": [None] * 10,
     },

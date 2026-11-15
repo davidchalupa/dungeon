@@ -1,5 +1,3 @@
-from assets.items import dagger_item, longsword_item
-
 # ==========================================
 # SPELLS DATABASE & PARTY CONFIGURATION
 # ==========================================

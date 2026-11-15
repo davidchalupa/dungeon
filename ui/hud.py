@@ -5,6 +5,7 @@ from assets.party_members import party_members, HERO_PORTRAIT_SIZE
 from assets.spells import SPELLS
 from ui.common import VIRTUAL_HEIGHT, get_fonts, get_virtual_mouse_pos_from_raw, global_party_portrait_rects
 from assets.party_members import get_class_abbrev_str
+from assets.items import get_item_icon
 
 # Internal drag-and-drop & mouse state trackers
 _dragged_item = None
@@ -278,17 +279,19 @@ def draw_character_subscreen(surface, hero):
     weapon_slot_rect = pygame.Rect(sil_center_x - 80, sil_center_y - 20, 40, 40)
     silhouette_drop_rect = pygame.Rect(sil_center_x - 90, sil_center_y - 100, 180, 150)
 
+    # Armor slot
     pygame.draw.rect(surface, (30, 30, 38), armor_slot_rect)
     pygame.draw.rect(surface, (110, 100, 70), armor_slot_rect, 2)
-    if hero.get("armor") is not None and "icon" in hero["armor"]:
-        armor_icon_rect = hero["armor"]["icon"].get_rect(center=armor_slot_rect.center)
-        surface.blit(hero["armor"]["icon"], armor_icon_rect)
+    if hero.get("armor") is not None:
+        armor_icon = get_item_icon(hero["armor"])
+        surface.blit(armor_icon, armor_icon.get_rect(center=armor_slot_rect.center))
 
+    # Weapon slot
     pygame.draw.rect(surface, (30, 30, 38), weapon_slot_rect)
     pygame.draw.rect(surface, (110, 100, 70), weapon_slot_rect, 2)
-    if hero["weapon"] is not None and "icon" in hero["weapon"]:
-        w_icon_rect = hero["weapon"]["icon"].get_rect(center=weapon_slot_rect.center)
-        surface.blit(hero["weapon"]["icon"], w_icon_rect)
+    if hero["weapon"] is not None:
+        w_icon = get_item_icon(hero["weapon"])
+        surface.blit(w_icon, w_icon.get_rect(center=weapon_slot_rect.center))
 
     # 10 Inventory Slots (Right Hand Side)
     inv_start_x = bg_rect.right - 340
@@ -310,9 +313,8 @@ def draw_character_subscreen(surface, hero):
         if item is not None:
             icon_box = pygame.Rect(s_rect.x + 4, s_rect.y + 4, 34, 34)
             pygame.draw.rect(surface, (45, 45, 60), icon_box)
-            if "icon" in item:
-                i_rect = item["icon"].get_rect(center=icon_box.center)
-                surface.blit(item["icon"], i_rect)
+            item_icon = get_item_icon(item)
+            surface.blit(item_icon, item_icon.get_rect(center=icon_box.center))
 
             name_surf = font_med.render(item.get("name", "Unknown Item"), True, (240, 240, 240))
             surface.blit(name_surf, (s_rect.x + 48, s_rect.y + 11))
@@ -492,8 +494,9 @@ def draw_character_subscreen(surface, hero):
         surface.blit(tip_surf_stats, (tip_rect.x + 8, tip_rect.y + 22))
         surface.blit(tip_surf_classes, (tip_rect.x + 8, tip_rect.y + 40))
 
-    if _dragged_item is not None and "icon" in _dragged_item:
-        surface.blit(_dragged_item["icon"], (mouse_pos[0] - 16, mouse_pos[1] - 16))
+    # Dragged item cursor icon
+    if _dragged_item is not None:
+        surface.blit(get_item_icon(_dragged_item), (mouse_pos[0] - 16, mouse_pos[1] - 16))
 
     footer_txt = font_med.render("Drag items to equip/unequip/inventory | [ESC] Return", True, (170, 170, 170))
     surface.blit(footer_txt, footer_txt.get_rect(center=(bg_rect.centerx, 555)))
