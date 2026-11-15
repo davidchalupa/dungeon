@@ -22,6 +22,7 @@ from engine.procedural_sprites import (
 from ui.hud import draw_party_ui, draw_character_subscreen, draw_spell_book
 from ui.common import VIRTUAL_HEIGHT, VIRTUAL_WIDTH, initialize_fonts, check_party_portrait_click
 from ui.map import draw_map
+from ui.shop import draw_shop_dialog, handle_shop_key
 
 
 # Initialize Pygame
@@ -121,6 +122,7 @@ attack_flash_timer = 0
 spell_effect_timer = 0
 food_portions = 20
 gold = 0
+shop_visible = False
 
 floor_kind_lut = None
 floor_luts = []
@@ -335,6 +337,12 @@ while running:
                 # Sync selected hero only if we didn't exit via ESC
                 if viewing_character is not None:
                     selected_hero_index = viewing_character
+            elif shop_visible:
+                should_close, gold, shop_msg = handle_shop_key(event, gold)
+                if should_close:
+                    shop_visible = False
+                if shop_msg:
+                    combat_message = shop_msg
             else:
                 if not in_combat and targeting_spell is None:
                     key_mapping = {
@@ -384,6 +392,13 @@ while running:
                             combat_message = "Cannot rest while in combat!"
                     elif event.key == pygame.K_m:  # Toggle map
                         map_visible = True
+                    elif event.key == pygame.K_SPACE:
+                        # Check if player is standing in front of or on a door cell (type 4, 7, or 8)
+                        cell_x, cell_y = int(posX + dirX * 0.5), int(posY + dirY * 0.5)
+                        if 0 <= cell_x < len(WORLD_MAP[0]) and 0 <= cell_y < len(WORLD_MAP):
+                            if WORLD_MAP[cell_y][cell_x] in (4, 7, 8):
+                                shop_visible = True
+                                combat_message = "Entered the Blacksmith Shop."
 
                 if in_combat and current_opponent and current_opponent["alive"]:
                     if current_actor and current_actor != current_opponent:
@@ -881,6 +896,11 @@ while running:
         draw_spell_book(game_surface, viewing_spell_book)
     elif viewing_character is not None:
         draw_character_subscreen(game_surface, party_members[viewing_character])
+    elif shop_visible:
+        hero = party_members[selected_hero_index]
+        gold, shop_msg = draw_shop_dialog(game_surface, hero, gold)
+        if shop_msg:
+            combat_message = shop_msg
 
     # ==========================================
     # ASPECT-RATIO PRESERVED SCALING & CENTERING

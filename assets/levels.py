@@ -41,7 +41,7 @@ ENEMY_STATS = {
 
 LEVELS = {
     1: {
-        "name": "Level 5: Town of Aldenbrook",
+        "name": "Town of Aldenbrook",
         "texture_id": 3,
         "floor_texture_id": 3,
         "sky": True,
