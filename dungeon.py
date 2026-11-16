@@ -8,7 +8,7 @@ from engine.floor_and_sky import FloorCaster, surface_to_array, make_sky, build_
 
 from engine.textures import FLOOR_TEXTURES
 
-from assets.items import initialize_item_assets
+from assets.items import initialize_item_assets, get_item
 from assets.levels import LEVELS, ENEMY_STATS
 from assets.party_members import party_members, initialize_hero_avatars
 from assets.spells import SPELLS
@@ -23,6 +23,7 @@ from ui.hud import draw_party_ui, draw_character_subscreen, draw_spell_book
 from ui.common import VIRTUAL_HEIGHT, VIRTUAL_WIDTH, initialize_fonts, check_party_portrait_click
 from ui.map import draw_map
 from ui.shop import draw_shop_dialog, handle_shop_key
+from ui.loot import draw_loot_dialog, handle_loot_key
 
 
 # Initialize Pygame
@@ -123,6 +124,9 @@ spell_effect_timer = 0
 food_portions = 20
 gold = 0
 shop_visible = False
+loot_visible = False
+loot_items = []
+loot_source_name = ""
 
 floor_kind_lut = None
 floor_luts = []
@@ -164,6 +168,19 @@ def load_level(level_id):
         floor_kind_lut, floor_luts = None, []
 
 
+def _trigger_enemy_drop(opponent):
+    """Rolls for loot when an opponent is slain and opens the loot popup if an item drops."""
+    global loot_visible, loot_items, loot_source_name
+    drop_chance = opponent.get("drop_chance", 0.0)
+    drop_pool = opponent.get("drop_pool", [])
+    if drop_pool and random.random() < drop_chance:
+        dropped_id = random.choice(drop_pool)
+        loot_items = [get_item(dropped_id)]
+        loot_source_name = opponent.get("name", "Enemy")
+        loot_visible = True
+        return f" Dropped {loot_items[0]['name']}!"
+    return ""
+
 # Helper function to select and cast spell
 def select_spell_from_book(hero, spell_idx):
     global viewing_spell_book, targeting_spell, spellcaster, in_combat, current_opponent, combat_message, spell_effect_timer
@@ -191,7 +208,8 @@ def select_spell_from_book(hero, spell_idx):
                         current_opponent["alive"] = False
                         exp_reward = current_opponent.get("exp_reward", 0)
                         msg_suffix = combat.award_party_exp(exp_reward)
-                        combat_message = f"Victory! {hero['name']} casts {s_name} and defeats the {current_opponent['name']}!{msg_suffix}"
+                        drop_suffix = _trigger_enemy_drop(current_opponent)
+                        combat_message = f"Victory! {hero['name']} casts {s_name} and defeats the {current_opponent['name']}!{msg_suffix}{drop_suffix}"
                         in_combat = False
                         current_opponent = None
                     else:
@@ -343,6 +361,15 @@ while running:
                     shop_visible = False
                 if shop_msg:
                     combat_message = shop_msg
+            elif loot_visible:
+                should_close, selected_hero_index, loot_msg = handle_loot_key(
+                    event, party_members, selected_hero_index, loot_items
+                )
+                if should_close:
+                    loot_visible = False
+                    loot_items = []
+                if loot_msg:
+                    combat_message = loot_msg
             else:
                 if not in_combat and targeting_spell is None:
                     key_mapping = {
@@ -428,7 +455,8 @@ while running:
                                     current_opponent["alive"] = False
                                     exp_reward = current_opponent.get("exp_reward", 250)
                                     msg_suffix = combat.award_party_exp(exp_reward)
-                                    combat_message = f"Victory! {hero['name']} defeats the {current_opponent['name']}!{msg_suffix}"
+                                    drop_suffix = _trigger_enemy_drop(current_opponent)
+                                    combat_message = f"Victory! {hero['name']} defeats the {current_opponent['name']}!{msg_suffix}{drop_suffix}"
                                     in_combat = False
                                     current_opponent = None
                                 else:
@@ -917,6 +945,12 @@ while running:
         gold, shop_msg = draw_shop_dialog(game_surface, hero, gold)
         if shop_msg:
             combat_message = shop_msg
+    elif loot_visible:
+        selected_hero_index, loot_msg = draw_loot_dialog(
+            game_surface, party_members, selected_hero_index, loot_items, loot_source_name
+        )
+        if loot_msg:
+            combat_message = loot_msg
 
     # ==========================================
     # ASPECT-RATIO PRESERVED SCALING & CENTERING

@@ -21,6 +21,8 @@ ENEMY_STATS = {
         "min_def": 1,
         "max_def": 2,
         "exp_reward": 250,
+        "drop_chance": 0.30,
+        "drop_pool": ["bronze_ring"],
     },
     "toxic_slime": {
         "name": "Toxic Slime",
@@ -32,6 +34,8 @@ ENEMY_STATS = {
         "min_def": 0,
         "max_def": 1,
         "exp_reward": 200,
+        "drop_chance": 0.30,
+        "drop_pool": ["crude_sword", "dagger", "bronze_ring"],
     },
 }
 
