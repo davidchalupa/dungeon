@@ -266,6 +266,411 @@ def handle_player_movement(posX, posY, dirX, dirY, planeX, planeY):
     return posX, posY, dirX, dirY, planeX, planeY
 
 
+def cast_rays(posX, posY, dirX, dirY, planeX, planeY, WORLD_MAP, RENDER_WIDTH):
+    """Perform raycasting to determine wall positions for rendering."""
+    ray_cache = []
+    for x in range(RENDER_WIDTH):
+        cameraX = 2 * x / RENDER_WIDTH - 1
+        rayDirX = dirX + planeX * cameraX
+        rayDirY = dirY + planeY * cameraX
+
+        mapX = int(posX)
+        mapY = int(posY)
+
+        deltaDistX = abs(1 / rayDirX) if rayDirX != 0 else 1e30
+        deltaDistY = abs(1 / rayDirY) if rayDirY != 0 else 1e30
+
+        hit = 0  # 0 = searching, 1 = solid wall hit (1), 2 = open sea / horizon
+        side = 0
+
+        if rayDirX < 0:
+            stepX = -1
+            sideDistX = (posX - mapX) * deltaDistX
+        else:
+            stepX = 1
+            sideDistX = (mapX + 1.0 - posX) * deltaDistX
+
+        if rayDirY < 0:
+            stepY = -1
+            sideDistY = (posY - mapY) * deltaDistY
+        else:
+            stepY = 1
+            sideDistY = (mapY + 1.0 - posY) * deltaDistY
+
+        while hit == 0:
+            if sideDistX < sideDistY:
+                sideDistX += deltaDistX
+                mapX += stepX
+                side = 0
+            else:
+                sideDistY += deltaDistY
+                mapY += stepY
+                side = 1
+
+            # Check map boundaries
+            if mapX < 0 or mapX >= len(WORLD_MAP[0]) or mapY < 0 or mapY >= len(WORLD_MAP):
+                hit = 2
+                break
+
+            cell_type = WORLD_MAP[mapY][mapX]
+            if cell_type in (1, 3, 4, 6, 7, 8):
+                hit = 1  # Solid wall (brick, stone, or shop front)
+            elif cell_type == 2:
+                pass  # Water: ray passes through
+            elif combat.is_wall(mapX, mapY):
+                hit = 1
+
+        if hit == 1:
+            if side == 0:
+                perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX
+                wallX = posY + perpWallDist * rayDirY
+            else:
+                perpWallDist = (mapY - posY + (1 - stepY) / 2) / rayDirY
+                wallX = posX + perpWallDist * rayDirX
+
+            wallX -= math.floor(wallX)
+        else:
+            perpWallDist = float('inf')  # Infinite distance so sprites over water render properly
+            wallX = 0
+
+        ray_cache.append({
+            "hit": hit,
+            "perpWallDist": perpWallDist,
+            "side": side,
+            "wallX": wallX,
+            "rayDirX": rayDirX,
+            "rayDirY": rayDirY,
+            "cell_type": cell_type if hit == 1 else 0,
+        })
+    return ray_cache
+
+
+def render_game(screen, game_surface, attack_flash_timer, combat_message, gold, selected_hero_index, spell_effect_timer):
+    """Render 3D floor/walls, sprites, and all UI overlays."""
+    # Render Ceiling / Sky and Floor on the 3D surface
+    horizon = RENDER_HEIGHT // 2
+
+    if level_data.get("sky"):
+        screen.blit(sky_surface, (0, 0))
+        draw_sun(screen, dirX, dirY, planeX, planeY)
+    else:
+        screen.fill(CEILING_COLOR, (0, 0, RENDER_WIDTH, horizon + 1))
+
+    if floor_luts:
+        lut = floor_luts[(pygame.time.get_ticks() // 250) % len(floor_luts)]
+        floor_caster.draw(posX, posY, dirX, dirY, planeX, planeY,
+                          floor_kind_lut, lut)
+        scaled = pygame.transform.scale(
+            floor_caster.band,
+            (RENDER_WIDTH, RENDER_HEIGHT - horizon - 1),
+        )
+        screen.blit(scaled, (0, horizon + 1))
+    else:
+        screen.fill(FLOOR_COLOR, (0, horizon + 1, RENDER_WIDTH, RENDER_HEIGHT - horizon - 1))
+
+    tex_res = 256
+
+    # Raycasting Pass
+    ray_cache = cast_rays(posX, posY, dirX, dirY, planeX, planeY, WORLD_MAP, RENDER_WIDTH)
+
+    # Wall Rendering Pass using renderer.TEXTURE_STRIPS
+    default_strips = renderer.TEXTURE_STRIPS[active_texture_id]
+    shop_door_strips = renderer.TEXTURE_STRIPS.get(4, default_strips)
+    shop_wall_strips = renderer.TEXTURE_STRIPS.get(6, default_strips)
+    town_door_strips = renderer.TEXTURE_STRIPS.get(7, default_strips)
+    town_gate_strips = renderer.TEXTURE_STRIPS.get(8, default_strips)
+    for x in range(RENDER_WIDTH):
+        data = ray_cache[x]
+        if data["hit"] != 1:
+            continue  # Skip drawing walls for water/open sea (hit == 2 or 0)
+
+        perpWallDist = data["perpWallDist"]
+        side = data["side"]
+        wallX = data["wallX"]
+        rayDirX = data["rayDirX"]
+        rayDirY = data["rayDirY"]
+
+        lineHeight = (
+            max(1, int(RENDER_HEIGHT / perpWallDist))
+            if perpWallDist > 0
+            else RENDER_HEIGHT
+        )
+        drawStart = (RENDER_HEIGHT - lineHeight) // 2
+        drawEnd = drawStart + lineHeight - 1
+
+        texX = int(wallX * tex_res)
+        if side == 0 and rayDirX < 0:
+            texX = tex_res - texX - 1
+        if side == 1 and rayDirY > 0:
+            texX = tex_res - texX - 1
+
+        try:
+            if data["cell_type"] == 4:
+                wall_strips = shop_door_strips
+            elif data["cell_type"] == 6:
+                wall_strips = shop_wall_strips
+            elif data["cell_type"] == 7:
+                wall_strips = town_door_strips
+            elif data["cell_type"] == 8:
+                wall_strips = town_gate_strips
+            else:
+                wall_strips = default_strips
+            wall_strip = wall_strips[texX]
+            scaled_strip = pygame.transform.scale(wall_strip, (1, lineHeight))
+
+            if side == 1:
+                darken = pygame.Surface((1, lineHeight))
+                darken.fill((30, 30, 30))
+                scaled_strip.blit(darken, (0, 0), special_flags=pygame.BLEND_SUB)
+
+            screen.blit(scaled_strip, (x, drawStart))
+        except ValueError:
+            fallback_color = (130, 130, 140) if side == 0 else (100, 100, 110)
+            pygame.draw.line(screen, fallback_color, (x, drawStart), (x, drawEnd))
+
+    # Sort opponents by distance (Painter's Algorithm)
+    sorted_opponents = sorted(opponents, key=lambda o: math.hypot(o["x"] - posX, o["y"] - posY), reverse=True)
+
+    # Render opponents/sprites using procedural factory
+    for opp in sorted_opponents:
+        if opp["alive"]:
+            spriteX = opp["x"] - posX
+            spriteY = opp["y"] - posY
+
+            invDet = 1.0 / (planeX * dirY - dirX * planeY)
+            transformX = invDet * (dirY * spriteX - dirX * spriteY)
+            transformY = invDet * (-planeY * spriteX + planeX * spriteY)
+
+            if transformY > 0.2:
+                screenX = int((RENDER_WIDTH / 2) * (1.0 + transformX / transformY))
+
+                is_spider = opp.get("sprite") == "spider"
+                is_slime = opp.get("sprite") == "slime"
+
+                if is_spider:
+                    sprite_scale = 0.55
+                elif is_slime:
+                    sprite_scale = 0.65
+                else:
+                    sprite_scale = 1.35
+
+                spriteHeight = abs(int(RENDER_HEIGHT / transformY * sprite_scale))
+                spriteWidth = abs(int(RENDER_HEIGHT / transformY * sprite_scale))
+
+                # --- Shift bounding box down so entities sit flush on the floor ---
+                if is_spider:
+                    base_shift = int(spriteHeight * 0.42)
+                    distance_boost = int(max(0, 80 - spriteHeight) * 0.35) if spriteHeight < 80 else 0
+                    vertical_shift = base_shift + distance_boost
+                elif is_slime:
+                    base_shift = int(spriteHeight * 0.38)
+                    distance_boost = int(max(0, 80 - spriteHeight) * 0.30) if spriteHeight < 80 else 0
+                    vertical_shift = base_shift + distance_boost
+                else:
+                    vertical_shift = 0
+
+                drawStartY = max(0, (RENDER_HEIGHT - spriteHeight) // 2 + vertical_shift)
+                drawEndY = min(RENDER_HEIGHT, (RENDER_HEIGHT + spriteHeight) // 2 + vertical_shift)
+                drawStartX = max(0, screenX - spriteWidth // 2)
+                drawEndX = min(RENDER_WIDTH, screenX + spriteWidth // 2)
+
+                if drawEndX <= drawStartX or drawEndY <= drawStartY:
+                    continue
+
+                visible = False
+                check_stripes = [drawStartX, screenX, drawEndX - 1]
+                for stripe in check_stripes:
+                    if 0 <= stripe < RENDER_WIDTH:
+                        if transformY <= ray_cache[stripe]["perpWallDist"]:
+                            visible = True
+                            break
+
+                if not visible:
+                    continue
+
+                is_current = in_combat and current_opponent == opp
+                flashing = is_current and (attack_flash_timer > 0 or spell_effect_timer > 0)
+
+                if is_spider:
+                    anim_phase = (pygame.time.get_ticks() // 40) % SPIDER_ANIM_PHASES
+                    spider_color = (180, 50, 40) if flashing else (45, 42, 40)
+                    ghost_surf = get_cached_procedural_cave_spider(
+                        drawEndX - drawStartX, drawEndY - drawStartY,
+                        spider_color, anim_phase,
+                    )
+                elif is_slime:
+                    anim_phase = (pygame.time.get_ticks() // 120) % SLIME_ANIM_PHASES
+                    slime_color = (230, 80, 180) if flashing else (50, 210,
+                                                                   100)  # Vibrant green, turns magenta when attacked!
+                    ghost_surf = get_cached_procedural_slime(
+                        drawEndX - drawStartX, drawEndY - drawStartY,
+                        slime_color, anim_phase,
+                    )
+                else:
+                    body_color = (200, 60, 60) if flashing else (70, 190, 160)
+                    breath = int(math.sin(pygame.time.get_ticks() * 0.008 + opp["x"]) * 6)
+                    ghost_surf = get_cached_procedural_goblin_ghost(
+                        drawEndX - drawStartX, drawEndY - drawStartY,
+                        body_color, breath,
+                    )
+
+                screen.blit(ghost_surf, (drawStartX, drawStartY))
+
+    if attack_flash_timer > 0:
+        attack_flash_timer -= 1
+
+    # Spell Visual Effect Rendering on Screen (Magic Arrow only)
+    if spell_effect_timer > 0:
+        spell_overlay = pygame.Surface((RENDER_WIDTH, RENDER_HEIGHT), pygame.SRCALPHA)
+        spell_overlay.fill((80, 160, 255, 50 + spell_effect_timer * 4))
+        screen.blit(spell_overlay, (0, 0))
+        pygame.draw.circle(
+            screen, (150, 220, 255),
+            (RENDER_WIDTH // 2, RENDER_HEIGHT // 2),
+            spell_effect_timer * 14, 3
+        )
+        spell_effect_timer -= 1
+
+    # ==========================================
+    # ASSEMBLE ON VIRTUAL MASTER SURFACE (840x740)
+    # ==========================================
+    game_surface.blit(screen, (0, 0))
+
+    # Draw Rest Confirmation Modal Banner if active
+    if resting_confirmation:
+        rest_box = pygame.Rect(VIRTUAL_WIDTH // 2 - 210, VIRTUAL_HEIGHT // 2 - 60, 420, 120)
+        pygame.draw.rect(game_surface, (15, 20, 35), rest_box)
+        pygame.draw.rect(game_surface, (100, 180, 255), rest_box, 3)
+
+        title_lbl = font_title.render("REST AT CAMP?", True, (150, 220, 255))
+        sub_lbl1 = font_med.render(f"Restore HP/Mana? (Cost: {len(party_members)} Food | Have: {food_portions})", True,
+                                   (220, 220, 220))
+        sub_lbl2 = font_med.render("[Y] Yes, Rest  |  [N / ESC] Cancel", True, (255, 200, 100))
+
+        game_surface.blit(title_lbl, title_lbl.get_rect(center=(rest_box.centerx, rest_box.y + 25)))
+        game_surface.blit(sub_lbl1, sub_lbl1.get_rect(center=(rest_box.centerx, rest_box.y + 55)))
+        game_surface.blit(sub_lbl2, sub_lbl2.get_rect(center=(rest_box.centerx, rest_box.y + 90)))
+
+    # Draw Targeting Modal Banner if targeting is active
+    elif targeting_spell is not None:
+        banner_rect = pygame.Rect(40, 150, VIRTUAL_WIDTH - 80, 70)
+        pygame.draw.rect(game_surface, (10, 40, 20), banner_rect)
+        pygame.draw.rect(game_surface, (50, 255, 120), banner_rect, 3)
+
+        banner_title = font_title.render("CHOOSE PARTY MEMBER TO HEAL", True, (100, 255, 150))
+        banner_sub = font_med.render("Press party keys [1], [2], [3], or [4]  |  [ESC] to Cancel", True,
+                                     (220, 240, 220))
+
+        game_surface.blit(banner_title, banner_title.get_rect(center=(banner_rect.centerx, banner_rect.y + 22)))
+        game_surface.blit(banner_sub, banner_sub.get_rect(center=(banner_rect.centerx, banner_rect.y + 48)))
+
+    # Draw Combat Overlay if active
+    elif in_combat and current_opponent and current_opponent["alive"]:
+        combat_box = pygame.Rect(20, 40, VIRTUAL_WIDTH - 40, 80)
+        pygame.draw.rect(game_surface, (15, 15, 20), combat_box)
+        pygame.draw.rect(game_surface, (200, 50, 50), combat_box, 2)
+
+        enemy_lbl = font_large.render(
+            f"FIGHTING: {current_opponent['name']} (HP: {current_opponent['hp']}/{current_opponent['max_hp']})",
+            True,
+            (255, 100, 100),
+        )
+        turn_owner = (
+            combat.turn_queue[combat.turn_index]["name"]
+            if (combat.turn_queue and combat.turn_index < len(combat.turn_queue) and combat.turn_queue[
+                combat.turn_index] != current_opponent)
+            else "Enemy"
+        )
+        msg_lbl = font_med.render(
+            f"[{turn_owner}'s Turn] {combat_message}", True, (240, 240, 240)
+        )
+        action_lbl = font_med.render(
+            "Commands: [A] Attack  |  [C] Spell Book  |  [W] Wait", True, (200, 200, 100)
+        )
+
+        game_surface.blit(enemy_lbl, (combat_box.x + 15, combat_box.y + 10))
+        game_surface.blit(msg_lbl, (combat_box.x + 15, combat_box.y + 35))
+        game_surface.blit(action_lbl, (combat_box.x + 15, combat_box.y + 55))
+    else:
+        # Non-combat status message / guide overlay (Dynamic sizing & correct padding)
+        max_width = VIRTUAL_WIDTH - 40 - 24  # Box width minus 12px left and right padding
+        text_to_render = f"Status: {combat_message} | [1-4] Select (Press again for Sheet) | [C] Spells | [R] Rest"
+        lines = []
+        words = text_to_render.split()
+
+        current_line = ""
+        for word in words:
+            test_line = current_line + (" " if current_line else "") + word
+            test_surface = font_med.render(test_line, True, (220, 220, 220))
+            if test_surface.get_width() <= max_width:
+                current_line = test_line
+            else:
+                lines.append(current_line)
+                current_line = word
+
+        if current_line:
+            lines.append(current_line)
+
+        line_height = font_med.get_linesize() if hasattr(font_med, 'get_linesize') else 18
+        padding_y = 10
+        box_height = max(36, len(lines) * line_height + (padding_y * 2))
+
+        status_box = pygame.Rect(20, 40, VIRTUAL_WIDTH - 40, box_height)
+        pygame.draw.rect(game_surface, (15, 15, 20), status_box)
+        pygame.draw.rect(game_surface, (80, 80, 100), status_box, 1)
+
+        start_y = status_box.y + padding_y
+        for i, line in enumerate(lines):
+            y_pos = start_y + (i * line_height)
+            surface_text = font_med.render(line, True, (220, 220, 220))
+            game_surface.blit(surface_text, (status_box.x + 12, y_pos))
+
+    # Draw Level Title Overlay & Dynamic Switch hints
+    fullscreen_text = "[F11] Exit Fullscreen" if is_fullscreen else "[F11] Fullscreen"
+    txt = font_med.render(
+        f"{level_data['name']} | Gold: {gold} | Food: {food_portions} | [F1-F6] Switch Level | {fullscreen_text}",
+        True,
+        (240, 240, 240),
+    )
+    game_surface.blit(txt, (10, 10))
+
+    # Draw Party UI at the bottom seamlessly with active character frame or target highlights
+    if in_combat and combat.turn_queue and combat.turn_index < len(combat.turn_queue):
+        current_actor = combat.turn_queue[combat.turn_index]
+    else:
+        current_actor = party_members[selected_hero_index]
+    draw_party_ui(game_surface, current_actor=current_actor, targeting_active=(targeting_spell is not None))
+
+    # Render Subscreens & Overlays if active
+    if map_visible:
+        draw_map(
+            game_surface,
+            WORLD_MAP,
+            (posX, posY),
+            (dirX, dirY),
+            opponents,
+            level_name=level_data["name"],
+            floor_texture_id=level_data.get("floor_texture_id"),
+            texture_id=level_data.get("texture_id")
+        )
+    elif viewing_spell_book is not None:
+        draw_spell_book(game_surface, viewing_spell_book)
+    elif viewing_character is not None:
+        draw_character_subscreen(game_surface, party_members[viewing_character])
+    elif shop_visible:
+        hero = party_members[selected_hero_index]
+        gold, shop_msg = draw_shop_dialog(game_surface, hero, gold)
+        if shop_msg:
+            combat_message = shop_msg
+    elif loot_visible:
+        selected_hero_index, loot_msg = draw_loot_dialog(
+            game_surface, party_members, selected_hero_index, loot_items, loot_source_name
+        )
+        if loot_msg:
+            combat_message = loot_msg
+    return game_surface, combat_message, gold
+
+
 # ==========================================
 # MAIN GAME LOOP
 # ==========================================
@@ -568,400 +973,7 @@ while running:
             combat_message = enc_msg
             combat.start_combat_round(current_opponent)
 
-    # Render Ceiling / Sky and Floor on the 3D surface
-    horizon = RENDER_HEIGHT // 2
-
-    if level_data.get("sky"):
-        screen.blit(sky_surface, (0, 0))
-        draw_sun(screen, dirX, dirY, planeX, planeY)
-    else:
-        screen.fill(CEILING_COLOR, (0, 0, RENDER_WIDTH, horizon + 1))
-
-    if floor_luts:
-        lut = floor_luts[(pygame.time.get_ticks() // 250) % len(floor_luts)]
-        floor_caster.draw(posX, posY, dirX, dirY, planeX, planeY,
-                          floor_kind_lut, lut)
-        scaled = pygame.transform.scale(
-            floor_caster.band,
-            (RENDER_WIDTH, RENDER_HEIGHT - horizon - 1),
-        )
-        screen.blit(scaled, (0, horizon + 1))
-    else:
-        screen.fill(FLOOR_COLOR, (0, horizon + 1, RENDER_WIDTH, RENDER_HEIGHT - horizon - 1))
-
-    tex_res = 256
-    ray_cache = []
-
-    # Raycasting Pass
-    for x in range(RENDER_WIDTH):
-        cameraX = 2 * x / RENDER_WIDTH - 1
-        rayDirX = dirX + planeX * cameraX
-        rayDirY = dirY + planeY * cameraX
-
-        mapX = int(posX)
-        mapY = int(posY)
-
-        deltaDistX = abs(1 / rayDirX) if rayDirX != 0 else 1e30
-        deltaDistY = abs(1 / rayDirY) if rayDirY != 0 else 1e30
-
-        hit = 0  # 0 = searching, 1 = solid wall hit (1), 2 = open sea / horizon
-        side = 0
-
-        if rayDirX < 0:
-            stepX = -1
-            sideDistX = (posX - mapX) * deltaDistX
-        else:
-            stepX = 1
-            sideDistX = (mapX + 1.0 - posX) * deltaDistX
-
-        if rayDirY < 0:
-            stepY = -1
-            sideDistY = (posY - mapY) * deltaDistY
-        else:
-            stepY = 1
-            sideDistY = (mapY + 1.0 - posY) * deltaDistY
-
-        while hit == 0:
-            if sideDistX < sideDistY:
-                sideDistX += deltaDistX
-                mapX += stepX
-                side = 0
-            else:
-                sideDistY += deltaDistY
-                mapY += stepY
-                side = 1
-
-            # Check map boundaries
-            if mapX < 0 or mapX >= len(WORLD_MAP[0]) or mapY < 0 or mapY >= len(WORLD_MAP):
-                hit = 2
-                break
-
-            cell_type = WORLD_MAP[mapY][mapX]
-            if cell_type in (1, 3, 4, 6, 7, 8):
-                hit = 1  # Solid wall (brick, stone, or shop front)
-            elif cell_type == 2:
-                pass  # Water: ray passes through
-            elif combat.is_wall(mapX, mapY):
-                hit = 1
-
-        if hit == 1:
-            if side == 0:
-                perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX
-                wallX = posY + perpWallDist * rayDirY
-            else:
-                perpWallDist = (mapY - posY + (1 - stepY) / 2) / rayDirY
-                wallX = posX + perpWallDist * rayDirX
-
-            wallX -= math.floor(wallX)
-        else:
-            perpWallDist = float('inf')  # Infinite distance so sprites over water render properly
-            wallX = 0
-
-        ray_cache.append({
-            "hit": hit,
-            "perpWallDist": perpWallDist,
-            "side": side,
-            "wallX": wallX,
-            "rayDirX": rayDirX,
-            "rayDirY": rayDirY,
-            "cell_type": cell_type if hit == 1 else 0,
-        })
-
-    # Wall Rendering Pass using renderer.TEXTURE_STRIPS
-    default_strips = renderer.TEXTURE_STRIPS[active_texture_id]
-    shop_door_strips = renderer.TEXTURE_STRIPS.get(4, default_strips)
-    shop_wall_strips = renderer.TEXTURE_STRIPS.get(6, default_strips)
-    town_door_strips = renderer.TEXTURE_STRIPS.get(7, default_strips)
-    town_gate_strips = renderer.TEXTURE_STRIPS.get(8, default_strips)
-    for x in range(RENDER_WIDTH):
-        data = ray_cache[x]
-        if data["hit"] != 1:
-            continue  # Skip drawing walls for water/open sea (hit == 2 or 0)
-
-        perpWallDist = data["perpWallDist"]
-        side = data["side"]
-        wallX = data["wallX"]
-        rayDirX = data["rayDirX"]
-        rayDirY = data["rayDirY"]
-
-        lineHeight = (
-            max(1, int(RENDER_HEIGHT / perpWallDist))
-            if perpWallDist > 0
-            else RENDER_HEIGHT
-        )
-        drawStart = (RENDER_HEIGHT - lineHeight) // 2
-        drawEnd = drawStart + lineHeight - 1
-
-        texX = int(wallX * tex_res)
-        if side == 0 and rayDirX < 0:
-            texX = tex_res - texX - 1
-        if side == 1 and rayDirY > 0:
-            texX = tex_res - texX - 1
-
-        try:
-            if data["cell_type"] == 4:
-                wall_strips = shop_door_strips
-            elif data["cell_type"] == 6:
-                wall_strips = shop_wall_strips
-            elif data["cell_type"] == 7:
-                wall_strips = town_door_strips
-            elif data["cell_type"] == 8:
-                wall_strips = town_gate_strips
-            else:
-                wall_strips = default_strips
-            wall_strip = wall_strips[texX]
-            scaled_strip = pygame.transform.scale(wall_strip, (1, lineHeight))
-
-            if side == 1:
-                darken = pygame.Surface((1, lineHeight))
-                darken.fill((30, 30, 30))
-                scaled_strip.blit(darken, (0, 0), special_flags=pygame.BLEND_SUB)
-
-            screen.blit(scaled_strip, (x, drawStart))
-        except ValueError:
-            fallback_color = (130, 130, 140) if side == 0 else (100, 100, 110)
-            pygame.draw.line(screen, fallback_color, (x, drawStart), (x, drawEnd))
-
-    # Sort opponents by distance (Painter's Algorithm)
-    sorted_opponents = sorted(opponents, key=lambda o: math.hypot(o["x"] - posX, o["y"] - posY), reverse=True)
-
-    # Render opponents/sprites using procedural factory
-    for opp in sorted_opponents:
-        if opp["alive"]:
-            spriteX = opp["x"] - posX
-            spriteY = opp["y"] - posY
-
-            invDet = 1.0 / (planeX * dirY - dirX * planeY)
-            transformX = invDet * (dirY * spriteX - dirX * spriteY)
-            transformY = invDet * (-planeY * spriteX + planeX * spriteY)
-
-            if transformY > 0.2:
-                screenX = int((RENDER_WIDTH / 2) * (1.0 + transformX / transformY))
-
-                is_spider = opp.get("sprite") == "spider"
-                is_slime = opp.get("sprite") == "slime"
-
-                if is_spider:
-                    sprite_scale = 0.55
-                elif is_slime:
-                    sprite_scale = 0.65
-                else:
-                    sprite_scale = 1.35
-
-                spriteHeight = abs(int(RENDER_HEIGHT / transformY * sprite_scale))
-                spriteWidth = abs(int(RENDER_HEIGHT / transformY * sprite_scale))
-
-                # --- Shift bounding box down so entities sit flush on the floor ---
-                if is_spider:
-                    base_shift = int(spriteHeight * 0.42)
-                    distance_boost = int(max(0, 80 - spriteHeight) * 0.35) if spriteHeight < 80 else 0
-                    vertical_shift = base_shift + distance_boost
-                elif is_slime:
-                    base_shift = int(spriteHeight * 0.38)
-                    distance_boost = int(max(0, 80 - spriteHeight) * 0.30) if spriteHeight < 80 else 0
-                    vertical_shift = base_shift + distance_boost
-                else:
-                    vertical_shift = 0
-
-                drawStartY = max(0, (RENDER_HEIGHT - spriteHeight) // 2 + vertical_shift)
-                drawEndY = min(RENDER_HEIGHT, (RENDER_HEIGHT + spriteHeight) // 2 + vertical_shift)
-                drawStartX = max(0, screenX - spriteWidth // 2)
-                drawEndX = min(RENDER_WIDTH, screenX + spriteWidth // 2)
-
-                if drawEndX <= drawStartX or drawEndY <= drawStartY:
-                    continue
-
-                visible = False
-                check_stripes = [drawStartX, screenX, drawEndX - 1]
-                for stripe in check_stripes:
-                    if 0 <= stripe < RENDER_WIDTH:
-                        if transformY <= ray_cache[stripe]["perpWallDist"]:
-                            visible = True
-                            break
-
-                if not visible:
-                    continue
-
-                is_current = in_combat and current_opponent == opp
-                flashing = is_current and (attack_flash_timer > 0 or spell_effect_timer > 0)
-
-                if is_spider:
-                    anim_phase = (pygame.time.get_ticks() // 40) % SPIDER_ANIM_PHASES
-                    spider_color = (180, 50, 40) if flashing else (45, 42, 40)
-                    ghost_surf = get_cached_procedural_cave_spider(
-                        drawEndX - drawStartX, drawEndY - drawStartY,
-                        spider_color, anim_phase,
-                    )
-                elif is_slime:
-                    anim_phase = (pygame.time.get_ticks() // 120) % SLIME_ANIM_PHASES
-                    slime_color = (230, 80, 180) if flashing else (50, 210,
-                                                                   100)  # Vibrant green, turns magenta when attacked!
-                    ghost_surf = get_cached_procedural_slime(
-                        drawEndX - drawStartX, drawEndY - drawStartY,
-                        slime_color, anim_phase,
-                    )
-                else:
-                    body_color = (200, 60, 60) if flashing else (70, 190, 160)
-                    breath = int(math.sin(pygame.time.get_ticks() * 0.008 + opp["x"]) * 6)
-                    ghost_surf = get_cached_procedural_goblin_ghost(
-                        drawEndX - drawStartX, drawEndY - drawStartY,
-                        body_color, breath,
-                    )
-
-                screen.blit(ghost_surf, (drawStartX, drawStartY))
-
-    if attack_flash_timer > 0:
-        attack_flash_timer -= 1
-
-    # Spell Visual Effect Rendering on Screen (Magic Arrow only)
-    if spell_effect_timer > 0:
-        spell_overlay = pygame.Surface((RENDER_WIDTH, RENDER_HEIGHT), pygame.SRCALPHA)
-        spell_overlay.fill((80, 160, 255, 50 + spell_effect_timer * 4))
-        screen.blit(spell_overlay, (0, 0))
-        pygame.draw.circle(
-            screen, (150, 220, 255),
-            (RENDER_WIDTH // 2, RENDER_HEIGHT // 2),
-            spell_effect_timer * 14, 3
-        )
-        spell_effect_timer -= 1
-
-    # ==========================================
-    # ASSEMBLE ON VIRTUAL MASTER SURFACE (840x740)
-    # ==========================================
-    game_surface.blit(screen, (0, 0))
-
-    # Draw Rest Confirmation Modal Banner if active
-    if resting_confirmation:
-        rest_box = pygame.Rect(VIRTUAL_WIDTH // 2 - 210, VIRTUAL_HEIGHT // 2 - 60, 420, 120)
-        pygame.draw.rect(game_surface, (15, 20, 35), rest_box)
-        pygame.draw.rect(game_surface, (100, 180, 255), rest_box, 3)
-
-        title_lbl = font_title.render("REST AT CAMP?", True, (150, 220, 255))
-        sub_lbl1 = font_med.render(f"Restore HP/Mana? (Cost: {len(party_members)} Food | Have: {food_portions})", True,
-                                   (220, 220, 220))
-        sub_lbl2 = font_med.render("[Y] Yes, Rest  |  [N / ESC] Cancel", True, (255, 200, 100))
-
-        game_surface.blit(title_lbl, title_lbl.get_rect(center=(rest_box.centerx, rest_box.y + 25)))
-        game_surface.blit(sub_lbl1, sub_lbl1.get_rect(center=(rest_box.centerx, rest_box.y + 55)))
-        game_surface.blit(sub_lbl2, sub_lbl2.get_rect(center=(rest_box.centerx, rest_box.y + 90)))
-
-    # Draw Targeting Modal Banner if targeting is active
-    elif targeting_spell is not None:
-        banner_rect = pygame.Rect(40, 150, VIRTUAL_WIDTH - 80, 70)
-        pygame.draw.rect(game_surface, (10, 40, 20), banner_rect)
-        pygame.draw.rect(game_surface, (50, 255, 120), banner_rect, 3)
-
-        banner_title = font_title.render("CHOOSE PARTY MEMBER TO HEAL", True, (100, 255, 150))
-        banner_sub = font_med.render("Press party keys [1], [2], [3], or [4]  |  [ESC] to Cancel", True,
-                                     (220, 240, 220))
-
-        game_surface.blit(banner_title, banner_title.get_rect(center=(banner_rect.centerx, banner_rect.y + 22)))
-        game_surface.blit(banner_sub, banner_sub.get_rect(center=(banner_rect.centerx, banner_rect.y + 48)))
-
-    # Draw Combat Overlay if active
-    elif in_combat and current_opponent and current_opponent["alive"]:
-        combat_box = pygame.Rect(20, 40, VIRTUAL_WIDTH - 40, 80)
-        pygame.draw.rect(game_surface, (15, 15, 20), combat_box)
-        pygame.draw.rect(game_surface, (200, 50, 50), combat_box, 2)
-
-        enemy_lbl = font_large.render(
-            f"FIGHTING: {current_opponent['name']} (HP: {current_opponent['hp']}/{current_opponent['max_hp']})",
-            True,
-            (255, 100, 100),
-        )
-        turn_owner = (
-            combat.turn_queue[combat.turn_index]["name"]
-            if (combat.turn_queue and combat.turn_index < len(combat.turn_queue) and combat.turn_queue[
-                combat.turn_index] != current_opponent)
-            else "Enemy"
-        )
-        msg_lbl = font_med.render(
-            f"[{turn_owner}'s Turn] {combat_message}", True, (240, 240, 240)
-        )
-        action_lbl = font_med.render(
-            "Commands: [A] Attack  |  [C] Spell Book  |  [W] Wait", True, (200, 200, 100)
-        )
-
-        game_surface.blit(enemy_lbl, (combat_box.x + 15, combat_box.y + 10))
-        game_surface.blit(msg_lbl, (combat_box.x + 15, combat_box.y + 35))
-        game_surface.blit(action_lbl, (combat_box.x + 15, combat_box.y + 55))
-    else:
-        # Non-combat status message / guide overlay (Dynamic sizing & correct padding)
-        max_width = VIRTUAL_WIDTH - 40 - 24  # Box width minus 12px left and right padding
-        text_to_render = f"Status: {combat_message} | [1-4] Select (Press again for Sheet) | [C] Spells | [R] Rest"
-        lines = []
-        words = text_to_render.split()
-
-        current_line = ""
-        for word in words:
-            test_line = current_line + (" " if current_line else "") + word
-            test_surface = font_med.render(test_line, True, (220, 220, 220))
-            if test_surface.get_width() <= max_width:
-                current_line = test_line
-            else:
-                lines.append(current_line)
-                current_line = word
-
-        if current_line:
-            lines.append(current_line)
-
-        line_height = font_med.get_linesize() if hasattr(font_med, 'get_linesize') else 18
-        padding_y = 10
-        box_height = max(36, len(lines) * line_height + (padding_y * 2))
-
-        status_box = pygame.Rect(20, 40, VIRTUAL_WIDTH - 40, box_height)
-        pygame.draw.rect(game_surface, (15, 15, 20), status_box)
-        pygame.draw.rect(game_surface, (80, 80, 100), status_box, 1)
-
-        start_y = status_box.y + padding_y
-        for i, line in enumerate(lines):
-            y_pos = start_y + (i * line_height)
-            surface_text = font_med.render(line, True, (220, 220, 220))
-            game_surface.blit(surface_text, (status_box.x + 12, y_pos))
-
-    # Draw Level Title Overlay & Dynamic Switch hints
-    fullscreen_text = "[F11] Exit Fullscreen" if is_fullscreen else "[F11] Fullscreen"
-    txt = font_med.render(
-        f"{level_data['name']} | Gold: {gold} | Food: {food_portions} | [F1-F6] Switch Level | {fullscreen_text}",
-        True,
-        (240, 240, 240),
-    )
-    game_surface.blit(txt, (10, 10))
-
-    # Draw Party UI at the bottom seamlessly with active character frame or target highlights
-    if in_combat and combat.turn_queue and combat.turn_index < len(combat.turn_queue):
-        current_actor = combat.turn_queue[combat.turn_index]
-    else:
-        current_actor = party_members[selected_hero_index]
-    draw_party_ui(game_surface, current_actor=current_actor, targeting_active=(targeting_spell is not None))
-
-    # Render Subscreens & Overlays if active
-    if map_visible:
-        draw_map(
-            game_surface,
-            WORLD_MAP,
-            (posX, posY),
-            (dirX, dirY),
-            opponents,
-            level_name=level_data["name"],
-            floor_texture_id=level_data.get("floor_texture_id"),
-            texture_id=level_data.get("texture_id")
-        )
-    elif viewing_spell_book is not None:
-        draw_spell_book(game_surface, viewing_spell_book)
-    elif viewing_character is not None:
-        draw_character_subscreen(game_surface, party_members[viewing_character])
-    elif shop_visible:
-        hero = party_members[selected_hero_index]
-        gold, shop_msg = draw_shop_dialog(game_surface, hero, gold)
-        if shop_msg:
-            combat_message = shop_msg
-    elif loot_visible:
-        selected_hero_index, loot_msg = draw_loot_dialog(
-            game_surface, party_members, selected_hero_index, loot_items, loot_source_name
-        )
-        if loot_msg:
-            combat_message = loot_msg
+    game_surface, combat_message, gold = render_game(screen, game_surface, attack_flash_timer, combat_message, gold, selected_hero_index, spell_effect_timer)
 
     # ==========================================
     # ASPECT-RATIO PRESERVED SCALING & CENTERING
