@@ -228,6 +228,43 @@ def select_spell_from_book(hero, spell_idx):
             combat_message = f"Not enough mana to cast {s_name}!"
             viewing_spell_book = None
 
+# ==========================================
+# HANDLER FUNCTIONS FOR THE GAME LOOP
+# ==========================================
+def handle_player_movement(posX, posY, dirX, dirY, planeX, planeY):
+    """Handle player movement and rotation based on keyboard input."""
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_UP]:
+        newX = posX + dirX * MOVE_SPEED
+        newY = posY + dirY * MOVE_SPEED
+        if combat.can_move_to(newX, posY, PLAYER_RADIUS):
+            posX = newX
+        if combat.can_move_to(posX, newY, PLAYER_RADIUS):
+            posY = newY
+    if keys[pygame.K_DOWN]:
+        newX = posX - dirX * MOVE_SPEED
+        newY = posY - dirY * MOVE_SPEED
+        if combat.can_move_to(newX, posY, PLAYER_RADIUS):
+            posX = newX
+        if combat.can_move_to(posX, newY, PLAYER_RADIUS):
+            posY = newY
+
+    if keys[pygame.K_LEFT]:
+        oldDirX = dirX
+        dirX = dirX * math.cos(ROT_SPEED) - dirY * math.sin(ROT_SPEED)
+        dirY = oldDirX * math.sin(ROT_SPEED) + dirY * math.cos(ROT_SPEED)
+        oldPlaneX = planeX
+        planeX = planeX * math.cos(ROT_SPEED) - planeY * math.sin(ROT_SPEED)
+        planeY = oldPlaneX * math.sin(ROT_SPEED) + planeY * math.cos(ROT_SPEED)
+    if keys[pygame.K_RIGHT]:
+        oldDirX = dirX
+        dirX = dirX * math.cos(-ROT_SPEED) - dirY * math.sin(-ROT_SPEED)
+        dirY = oldDirX * math.sin(-ROT_SPEED) + dirY * math.cos(-ROT_SPEED)
+        oldPlaneX = planeX
+        planeX = planeX * math.cos(-ROT_SPEED) - planeY * math.sin(-ROT_SPEED)
+        planeY = oldPlaneX * math.sin(-ROT_SPEED) + planeY * math.cos(-ROT_SPEED)
+    return posX, posY, dirX, dirY, planeX, planeY
+
 
 # ==========================================
 # MAIN GAME LOOP
@@ -515,36 +552,10 @@ while running:
             combat.start_combat_round(current_opponent)
 
     if viewing_character is None and viewing_spell_book is None and targeting_spell is None and not resting_confirmation and not in_combat and not map_visible:
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_UP]:
-            newX = posX + dirX * MOVE_SPEED
-            newY = posY + dirY * MOVE_SPEED
-            if combat.can_move_to(newX, posY, PLAYER_RADIUS):
-                posX = newX
-            if combat.can_move_to(posX, newY, PLAYER_RADIUS):
-                posY = newY
-        if keys[pygame.K_DOWN]:
-            newX = posX - dirX * MOVE_SPEED
-            newY = posY - dirY * MOVE_SPEED
-            if combat.can_move_to(newX, posY, PLAYER_RADIUS):
-                posX = newX
-            if combat.can_move_to(posX, newY, PLAYER_RADIUS):
-                posY = newY
-
-        if keys[pygame.K_LEFT]:
-            oldDirX = dirX
-            dirX = dirX * math.cos(ROT_SPEED) - dirY * math.sin(ROT_SPEED)
-            dirY = oldDirX * math.sin(ROT_SPEED) + dirY * math.cos(ROT_SPEED)
-            oldPlaneX = planeX
-            planeX = planeX * math.cos(ROT_SPEED) - planeY * math.sin(ROT_SPEED)
-            planeY = oldPlaneX * math.sin(ROT_SPEED) + planeY * math.cos(ROT_SPEED)
-        if keys[pygame.K_RIGHT]:
-            oldDirX = dirX
-            dirX = dirX * math.cos(-ROT_SPEED) - dirY * math.sin(-ROT_SPEED)
-            dirY = oldDirX * math.sin(-ROT_SPEED) + dirY * math.cos(-ROT_SPEED)
-            oldPlaneX = planeX
-            planeX = planeX * math.cos(-ROT_SPEED) - planeY * math.sin(-ROT_SPEED)
-            planeY = oldPlaneX * math.sin(-ROT_SPEED) + planeY * math.cos(-ROT_SPEED)
+        # Handle movement - returns updated position/direction values
+        posX, posY, dirX, dirY, planeX, planeY = handle_player_movement(
+            posX, posY, dirX, dirY, planeX, planeY
+        )
 
     # Check for enemy encounters only when exploring
     if viewing_character is None and viewing_spell_book is None and targeting_spell is None and not resting_confirmation and not in_combat and not map_visible:
