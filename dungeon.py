@@ -26,6 +26,7 @@ from ui.map import draw_map
 from ui.shop import draw_shop_dialog, handle_shop_key
 from ui.loot import draw_loot_dialog, handle_loot_key
 from ui.training_hall import draw_training_hall_dialog, handle_training_hall_key
+from assets import cell_types
 
 
 # Initialize Pygame
@@ -316,7 +317,7 @@ def cast_rays(posX, posY, dirX, dirY, planeX, planeY, WORLD_MAP, RENDER_WIDTH):
                 break
 
             cell_type = WORLD_MAP[mapY][mapX]
-            if cell_type in (1, 3, 4, 6, 7, 8):
+            if cell_types.is_wall(cell_type):
                 hit = 1  # Solid wall (brick, stone, or shop front)
             elif cell_type == 2:
                 pass  # Water: ray passes through
