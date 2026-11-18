@@ -984,13 +984,13 @@ while running:
         else:
             combat.start_combat_round(current_opponent)
 
-    if viewing_character is None and viewing_spell_book is None and targeting_spell is None and not resting_confirmation and not in_combat and not map_visible and not shop_visible and not training_hall_visible:
+    if viewing_character is None and viewing_spell_book is None and targeting_spell is None and not resting_confirmation and not in_combat and not map_visible and not shop_visible and not training_hall_visible and not loot_visible:
         posX, posY, dirX, dirY, planeX, planeY = handle_player_movement(
             posX, posY, dirX, dirY, planeX, planeY
         )
 
     # Check for enemy encounters only when exploring
-    if viewing_character is None and viewing_spell_book is None and targeting_spell is None and not resting_confirmation and not in_combat and not map_visible:
+    if viewing_character is None and viewing_spell_book is None and targeting_spell is None and not resting_confirmation and not in_combat and not map_visible and not shop_visible and not training_hall_visible and not loot_visible:
         enc_in_combat, enc_opp, dirX, dirY, planeX, planeY, enc_msg = combat.check_enemy_encounters(
             posX, posY, dirX, dirY, planeX, planeY, opponents, in_combat
         )
