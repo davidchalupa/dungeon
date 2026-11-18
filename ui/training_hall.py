@@ -41,7 +41,7 @@ def handle_training_hall_key(event, party_members, selected_hero_index, player_g
 
 def draw_training_hall_dialog(surface, party_members, selected_hero_index, player_gold):
     """
-    Draws the Training Hall interface, allowing party member selection and leveling up.
+    Draws the Training Hall interface above the party HUD bar.
     Returns (updated_gold, updated_hero_index, status_message_or_None).
     """
     global _prev_mouse_pressed, train_btn_rect, hero_card_rects
@@ -49,27 +49,28 @@ def draw_training_hall_dialog(surface, party_members, selected_hero_index, playe
     font_med, font_large, font_title = get_fonts()
     status_msg = None
 
-    # Semi-transparent backdrop
-    overlay = pygame.Surface((VIRTUAL_WIDTH, VIRTUAL_HEIGHT), pygame.SRCALPHA)
-    overlay.fill((10, 15, 25, 235))
+    # Semi-transparent backdrop covering only the upper 3D viewport (leaves bottom party bar clickable & bright)
+    overlay = pygame.Surface((VIRTUAL_WIDTH, 546), pygame.SRCALPHA)
+    overlay.fill((10, 15, 25, 225))
     surface.blit(overlay, (0, 0))
 
-    panel_rect = pygame.Rect(60, 40, VIRTUAL_WIDTH - 120, VIRTUAL_HEIGHT - 80)
+    # Compact panel height so it doesn't overlap the party portraits at y >= 550
+    panel_rect = pygame.Rect(60, 40, VIRTUAL_WIDTH - 120, 495)
     pygame.draw.rect(surface, (20, 25, 35), panel_rect)
     pygame.draw.rect(surface, (100, 180, 255), panel_rect, 3)
 
     # Title & Gold Header
     title_surf = font_title.render("TRAINING HALL", True, (150, 220, 255))
-    surface.blit(title_surf, (panel_rect.x + 25, panel_rect.y + 20))
+    surface.blit(title_surf, (panel_rect.x + 25, panel_rect.y + 18))
 
     gold_surf = font_large.render(f"Party Gold: {player_gold}g", True, (255, 215, 0))
-    surface.blit(gold_surf, (panel_rect.right - gold_surf.get_width() - 25, panel_rect.y + 20))
-    pygame.draw.line(surface, (70, 90, 120), (panel_rect.x + 25, panel_rect.y + 60), (panel_rect.right - 25, panel_rect.y + 60), 1)
+    surface.blit(gold_surf, (panel_rect.right - gold_surf.get_width() - 25, panel_rect.y + 18))
+    pygame.draw.line(surface, (70, 90, 120), (panel_rect.x + 25, panel_rect.y + 56), (panel_rect.right - 25, panel_rect.y + 56), 1)
 
     # Left side: Party Members Cards
     hero_card_rects = []
-    list_y = panel_rect.y + 75
-    card_w, card_h = 300, 80
+    list_y = panel_rect.y + 70
+    card_w, card_h = 300, 76
 
     for i, hero in enumerate(party_members):
         card_rect = pygame.Rect(panel_rect.x + 25, list_y + i * (card_h + 10), card_w, card_h)
@@ -91,13 +92,13 @@ def draw_training_hall_dialog(surface, party_members, selected_hero_index, playe
 
     # Right side: Selected Hero Details & Training Action
     selected_hero = party_members[selected_hero_index]
-    details_rect = pygame.Rect(panel_rect.x + 345, panel_rect.y + 75, panel_rect.width - 370, panel_rect.height - 140)
+    details_rect = pygame.Rect(panel_rect.x + 345, panel_rect.y + 70, panel_rect.width - 370, 334)
 
     pygame.draw.rect(surface, (28, 35, 50), details_rect)
     pygame.draw.rect(surface, (80, 120, 160), details_rect, 2)
 
     det_title = font_large.render(f"Training: {selected_hero['name']}", True, (220, 240, 255))
-    surface.blit(det_title, (details_rect.x + 20, details_rect.y + 20))
+    surface.blit(det_title, (details_rect.x + 20, details_rect.y + 18))
 
     target_level = selected_hero["level"] + 1
     cost = 10 * target_level
@@ -113,14 +114,14 @@ def draw_training_hall_dialog(surface, party_members, selected_hero_index, playe
         f"  • Max MP: +{selected_hero['mp_per_level']}",
     ]
 
-    ly = details_rect.y + 65
+    ly = details_rect.y + 60
     for line in info_lines:
         txt_surf = font_med.render(line, True, (220, 220, 230))
         surface.blit(txt_surf, (details_rect.x + 20, ly))
-        ly += 28
+        ly += 27
 
     # Train Button
-    train_btn_rect = pygame.Rect(details_rect.centerx - 120, details_rect.bottom - 60, 240, 42)
+    train_btn_rect = pygame.Rect(details_rect.centerx - 120, details_rect.bottom - 56, 240, 40)
     can_train = current_exp >= req_exp and player_gold >= cost
     btn_bg = (40, 130, 70) if can_train else (60, 60, 70)
     btn_border = (100, 250, 140) if can_train else (100, 100, 100)
@@ -140,10 +141,10 @@ def draw_training_hall_dialog(surface, party_members, selected_hero_index, playe
     surface.blit(btn_txt, btn_txt.get_rect(center=train_btn_rect.center))
 
     # Footer instructions
-    footer_surf = font_med.render("Click hero to select | Click [TRAIN] or press [T] | [ESC] Close", True, (170, 170, 170))
-    surface.blit(footer_surf, footer_surf.get_rect(center=(panel_rect.centerx, panel_rect.bottom - 22)))
+    footer_surf = font_med.render("Click portrait or card [1-4] to switch | Press [T] or click [TRAIN] | [ESC] Close", True, (170, 170, 170))
+    surface.blit(footer_surf, footer_surf.get_rect(center=(panel_rect.centerx, panel_rect.bottom - 20)))
 
-    # Mouse Click Handling
+    # Mouse Click Handling (Card selection & Train button)
     if left_clicked:
         for c_rect, idx in hero_card_rects:
             if c_rect.collidepoint(mouse_pos):

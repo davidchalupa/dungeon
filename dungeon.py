@@ -726,13 +726,18 @@ while running:
                         targeting_spell = None
                         spellcaster = None
 
-                    # 2. Character Subscreen Active (Switch active character sheet view)
+                    # 2. Training Hall Active (Switch trainee directly from bottom portraits)
+                    elif training_hall_visible:
+                        selected_hero_index = clicked_idx
+                        combat_message = f"Selected {target_hero['name']} for training."
+
+                    # 3. Character Subscreen Active (Switch active character sheet view)
                     elif viewing_character is not None:
                         viewing_character = clicked_idx
                         selected_hero_index = clicked_idx  # Keep selected hero in sync
 
-                    # 3. Normal Exploration / Selection Mode
-                    elif not in_combat and viewing_spell_book is None and not map_visible and not resting_confirmation:
+                    # 4. Normal Exploration / Selection Mode
+                    elif not in_combat and viewing_spell_book is None and not map_visible and not resting_confirmation and not shop_visible:
                         if target_hero["hp"] > 0:
                             if selected_hero_index == clicked_idx:
                                 viewing_character = clicked_idx  # Open sheet if clicked again
@@ -740,6 +745,7 @@ while running:
                                 selected_hero_index = clicked_idx  # Select hero
                         else:
                             combat_message = f"{target_hero['name']} is fainted and cannot be selected!"
+
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_F11:
                 is_fullscreen = not is_fullscreen
