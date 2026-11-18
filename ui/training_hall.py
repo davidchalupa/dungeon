@@ -31,7 +31,10 @@ def handle_training_hall_key(event, party_members, selected_hero_index, player_g
                 hero["level"] += 1
                 hero["max_hp"] = hero["level"] * hero["hp_per_level"]
                 hero["max_mp"] = hero["level"] * hero["mp_per_level"]
-                return False, player_gold, selected_hero_index, f"{hero['name']} trained to Level {hero['level']}!"
+                # Refresh current HP and MP to their new maximums
+                hero["hp"] = hero["max_hp"]
+                hero["mp"] = hero["max_mp"]
+                return False, player_gold, selected_hero_index, f"{hero['name']} trained to Level {hero['level']} (HP & MP fully restored)!"
             else:
                 return False, player_gold, selected_hero_index, f"Not enough gold! Need {cost}g (have {player_gold}g)."
         else:
@@ -110,7 +113,7 @@ def draw_training_hall_dialog(surface, party_members, selected_hero_index, playe
         f"Current XP: {current_exp} / Required XP: {req_exp}",
         f"Training Cost: {cost} Gold (Available: {player_gold}g)",
         f"Stat Boosts on Training:",
-        f"  • Max HP: +{selected_hero['hp_per_level']}",
+        f"  • Max HP: +{selected_hero['hp_per_level']} (Refreshes HP/MP)",
         f"  • Max MP: +{selected_hero['mp_per_level']}",
     ]
 
@@ -157,7 +160,10 @@ def draw_training_hall_dialog(surface, party_members, selected_hero_index, playe
             selected_hero["level"] += 1
             selected_hero["max_hp"] = selected_hero["level"] * selected_hero["hp_per_level"]
             selected_hero["max_mp"] = selected_hero["level"] * selected_hero["mp_per_level"]
-            status_msg = f"{selected_hero['name']} successfully trained to Level {selected_hero['level']}!"
+            # Refresh current HP and MP to their new maximums
+            selected_hero["hp"] = selected_hero["max_hp"]
+            selected_hero["mp"] = selected_hero["max_mp"]
+            status_msg = f"{selected_hero['name']} successfully trained to Level {selected_hero['level']} (HP & MP fully restored)!"
 
     _prev_mouse_pressed = mouse_buttons[0]
     return player_gold, selected_hero_index, status_msg
