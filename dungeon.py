@@ -25,6 +25,7 @@ from ui.common import VIRTUAL_HEIGHT, VIRTUAL_WIDTH, initialize_fonts, check_par
 from ui.map import draw_map
 from ui.shop import draw_shop_dialog, handle_shop_key
 from ui.loot import draw_loot_dialog, handle_loot_key
+from ui.training_hall import draw_training_hall_dialog, handle_training_hall_key
 
 
 # Initialize Pygame
@@ -128,6 +129,7 @@ shop_visible = False
 loot_visible = False
 loot_items = []
 loot_source_name = ""
+training_hall_visible = False
 
 floor_kind_lut = None
 floor_luts = []
@@ -670,6 +672,12 @@ def render_game(screen, game_surface, combat_message, gold, selected_hero_index)
         )
         if loot_msg:
             combat_message = loot_msg
+    elif training_hall_visible:
+        gold, selected_hero_index, hall_msg = draw_training_hall_dialog(
+            game_surface, party_members, selected_hero_index, gold
+        )
+        if hall_msg:
+            combat_message = hall_msg
     return game_surface, combat_message, gold
 
 
@@ -805,6 +813,14 @@ while running:
                     shop_visible = False
                 if shop_msg:
                     combat_message = shop_msg
+            elif training_hall_visible:
+                should_close, gold, selected_hero_index, hall_msg = handle_training_hall_key(
+                    event, party_members, selected_hero_index, gold
+                )
+                if should_close:
+                    training_hall_visible = False
+                if hall_msg:
+                    combat_message = hall_msg
             elif loot_visible:
                 should_close, selected_hero_index, loot_msg = handle_loot_key(
                     event, party_members, selected_hero_index, loot_items
@@ -880,6 +896,9 @@ while running:
                             if action == "blacksmith":
                                 shop_visible = True
                                 combat_message = "Entered the Blacksmith Shop."
+                            elif action == "training_hall":
+                                training_hall_visible = True
+                                combat_message = "Entered the Training Hall."
                             elif action:
                                 combat_message = f"This door leads to {action} (coming soon!)."
                             else:
@@ -958,8 +977,7 @@ while running:
         else:
             combat.start_combat_round(current_opponent)
 
-    if viewing_character is None and viewing_spell_book is None and targeting_spell is None and not resting_confirmation and not in_combat and not map_visible:
-        # Handle movement - returns updated position/direction values
+    if viewing_character is None and viewing_spell_book is None and targeting_spell is None and not resting_confirmation and not in_combat and not map_visible and not shop_visible and not training_hall_visible:
         posX, posY, dirX, dirY, planeX, planeY = handle_player_movement(
             posX, posY, dirX, dirY, planeX, planeY
         )

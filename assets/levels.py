@@ -32,8 +32,8 @@ LEVELS = {
             "y": 1.5,
         },
         "doors": {
-            (5, 3): "blacksmith",  # Specific door coordinates mapped to the blacksmith shop
-            # Future doors can be added here easily: (11, 3): "inn", etc.
+            (5, 3): "blacksmith",
+            (11, 3): "training_hall",
         },
         "opponents": [],
     },
