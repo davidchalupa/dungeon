@@ -9,7 +9,8 @@ from engine.floor_and_sky import FloorCaster, surface_to_array, make_sky, build_
 from engine.textures import FLOOR_TEXTURES
 
 from assets.items import initialize_item_assets, get_item
-from assets.levels import LEVELS, ENEMY_STATS
+from assets.levels import LEVELS
+from assets.enemies import ENEMY_STATS
 from assets.party_members import party_members, initialize_hero_avatars
 from assets.spells import SPELLS
 import engine.combat as combat
