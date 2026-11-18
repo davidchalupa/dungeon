@@ -346,7 +346,8 @@ def cast_rays(posX, posY, dirX, dirY, planeX, planeY, WORLD_MAP, RENDER_WIDTH):
     return ray_cache
 
 
-def render_game(screen, game_surface, attack_flash_timer, combat_message, gold, selected_hero_index, spell_effect_timer):
+def render_game(screen, game_surface, combat_message, gold, selected_hero_index):
+    global spell_effect_timer, attack_flash_timer
     """Render 3D floor/walls, sprites, and all UI overlays."""
     # Render Ceiling / Sky and Floor on the 3D surface
     horizon = RENDER_HEIGHT // 2
@@ -974,7 +975,7 @@ while running:
             combat_message = enc_msg
             combat.start_combat_round(current_opponent)
 
-    game_surface, combat_message, gold = render_game(screen, game_surface, attack_flash_timer, combat_message, gold, selected_hero_index, spell_effect_timer)
+    game_surface, combat_message, gold = render_game(screen, game_surface, combat_message, gold, selected_hero_index)
 
     # ==========================================
     # ASPECT-RATIO PRESERVED SCALING & CENTERING
