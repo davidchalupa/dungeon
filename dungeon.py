@@ -27,6 +27,8 @@ from ui.shop import draw_shop_dialog, handle_shop_key
 from ui.loot import draw_loot_dialog, handle_loot_key
 from ui.training_hall import draw_training_hall_dialog, handle_training_hall_key
 from assets import cell_types
+from engine.movement import handle_player_movement
+from engine.raycasting import cast_rays
 
 
 # Initialize Pygame
@@ -105,10 +107,6 @@ posX, posY = 1.5, 1.5
 dirX, dirY = -1.0, 0.0
 planeX, planeY = 0.0, 0.4
 
-MOVE_SPEED = 0.04
-ROT_SPEED = 0.035
-PLAYER_RADIUS = 0.22
-
 CEILING_COLOR = (40, 40, 50)
 FLOOR_COLOR = (60, 50, 40)
 
@@ -185,6 +183,7 @@ def _trigger_enemy_drop(opponent):
         return f" Dropped {loot_items[0]['name']}!"
     return ""
 
+
 # Helper function to select and cast spell
 def select_spell_from_book(hero, spell_idx):
     global viewing_spell_book, targeting_spell, spellcaster, in_combat, current_opponent, combat_message, spell_effect_timer
@@ -231,122 +230,6 @@ def select_spell_from_book(hero, spell_idx):
         else:
             combat_message = f"Not enough mana to cast {s_name}!"
             viewing_spell_book = None
-
-# ==========================================
-# HANDLER FUNCTIONS FOR THE GAME LOOP
-# ==========================================
-def handle_player_movement(posX, posY, dirX, dirY, planeX, planeY):
-    """Handle player movement and rotation based on keyboard input."""
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_UP]:
-        newX = posX + dirX * MOVE_SPEED
-        newY = posY + dirY * MOVE_SPEED
-        if combat.can_move_to(newX, posY, PLAYER_RADIUS):
-            posX = newX
-        if combat.can_move_to(posX, newY, PLAYER_RADIUS):
-            posY = newY
-    if keys[pygame.K_DOWN]:
-        newX = posX - dirX * MOVE_SPEED
-        newY = posY - dirY * MOVE_SPEED
-        if combat.can_move_to(newX, posY, PLAYER_RADIUS):
-            posX = newX
-        if combat.can_move_to(posX, newY, PLAYER_RADIUS):
-            posY = newY
-
-    if keys[pygame.K_LEFT]:
-        oldDirX = dirX
-        dirX = dirX * math.cos(ROT_SPEED) - dirY * math.sin(ROT_SPEED)
-        dirY = oldDirX * math.sin(ROT_SPEED) + dirY * math.cos(ROT_SPEED)
-        oldPlaneX = planeX
-        planeX = planeX * math.cos(ROT_SPEED) - planeY * math.sin(ROT_SPEED)
-        planeY = oldPlaneX * math.sin(ROT_SPEED) + planeY * math.cos(ROT_SPEED)
-    if keys[pygame.K_RIGHT]:
-        oldDirX = dirX
-        dirX = dirX * math.cos(-ROT_SPEED) - dirY * math.sin(-ROT_SPEED)
-        dirY = oldDirX * math.sin(-ROT_SPEED) + dirY * math.cos(-ROT_SPEED)
-        oldPlaneX = planeX
-        planeX = planeX * math.cos(-ROT_SPEED) - planeY * math.sin(-ROT_SPEED)
-        planeY = oldPlaneX * math.sin(-ROT_SPEED) + planeY * math.cos(-ROT_SPEED)
-    return posX, posY, dirX, dirY, planeX, planeY
-
-
-def cast_rays(posX, posY, dirX, dirY, planeX, planeY, WORLD_MAP, RENDER_WIDTH):
-    """Perform raycasting to determine wall positions for rendering."""
-    ray_cache = []
-    for x in range(RENDER_WIDTH):
-        cameraX = 2 * x / RENDER_WIDTH - 1
-        rayDirX = dirX + planeX * cameraX
-        rayDirY = dirY + planeY * cameraX
-
-        mapX = int(posX)
-        mapY = int(posY)
-
-        deltaDistX = abs(1 / rayDirX) if rayDirX != 0 else 1e30
-        deltaDistY = abs(1 / rayDirY) if rayDirY != 0 else 1e30
-
-        hit = 0  # 0 = searching, 1 = solid wall hit (1), 2 = open sea / horizon
-        side = 0
-
-        if rayDirX < 0:
-            stepX = -1
-            sideDistX = (posX - mapX) * deltaDistX
-        else:
-            stepX = 1
-            sideDistX = (mapX + 1.0 - posX) * deltaDistX
-
-        if rayDirY < 0:
-            stepY = -1
-            sideDistY = (posY - mapY) * deltaDistY
-        else:
-            stepY = 1
-            sideDistY = (mapY + 1.0 - posY) * deltaDistY
-
-        while hit == 0:
-            if sideDistX < sideDistY:
-                sideDistX += deltaDistX
-                mapX += stepX
-                side = 0
-            else:
-                sideDistY += deltaDistY
-                mapY += stepY
-                side = 1
-
-            # Check map boundaries
-            if mapX < 0 or mapX >= len(WORLD_MAP[0]) or mapY < 0 or mapY >= len(WORLD_MAP):
-                hit = 2
-                break
-
-            cell_type = WORLD_MAP[mapY][mapX]
-            if cell_types.is_wall(cell_type):
-                hit = 1  # Solid wall (brick, stone, or shop front)
-            elif cell_type == 2:
-                pass  # Water: ray passes through
-            elif combat.is_wall(mapX, mapY):
-                hit = 1
-
-        if hit == 1:
-            if side == 0:
-                perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX
-                wallX = posY + perpWallDist * rayDirY
-            else:
-                perpWallDist = (mapY - posY + (1 - stepY) / 2) / rayDirY
-                wallX = posX + perpWallDist * rayDirX
-
-            wallX -= math.floor(wallX)
-        else:
-            perpWallDist = float('inf')  # Infinite distance so sprites over water render properly
-            wallX = 0
-
-        ray_cache.append({
-            "hit": hit,
-            "perpWallDist": perpWallDist,
-            "side": side,
-            "wallX": wallX,
-            "rayDirX": rayDirX,
-            "rayDirY": rayDirY,
-            "cell_type": cell_type if hit == 1 else 0,
-        })
-    return ray_cache
 
 
 def render_game(screen, game_surface, combat_message, gold, selected_hero_index):

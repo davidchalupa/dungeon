@@ -24,3 +24,6 @@ Pixel art icon of a classic chain mail chestpiece, interlocking iron mesh over a
 
 bronze ring
 "Pixel art icon of a classic bronze ring, simple circular metal band, warm brownish-gold metallic sheen with subtle highlights, slightly angled three-quarter view, centered. Clean outlines, high quality pixel art, suitable for a 16-bit RPG inventory. Size: 40x40 pixels. White background."
+
+small shield
+"Pixel art icon of a tiny round all-wood buckler, compact circular plank design, wooden center boss, wide white margin around edges, centered facing forward. Clean outlines, high quality 16-bit RPG inventory icon. Size: 40x40 pixels. White background."

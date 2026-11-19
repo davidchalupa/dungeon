@@ -15,6 +15,7 @@ _prev_mouse_pressed = False
 # Global rect references accessible across drawing and event handling
 armor_slot_rect = pygame.Rect(0, 0, 0, 0)
 weapon_slot_rect = pygame.Rect(0, 0, 0, 0)
+shield_slot_rect = pygame.Rect(0, 0, 0, 0)
 silhouette_drop_rect = pygame.Rect(0, 0, 0, 0)
 inv_slot_rects = []
 
@@ -228,6 +229,8 @@ def draw_character_subscreen(surface, hero):
 
     if "inventory" not in hero:
         hero["inventory"] = [None] * 10
+    if "shield" not in hero:
+        hero["shield"] = None
 
     avatar_x = bg_rect.x + 25
     avatar_y = bg_rect.y + 60
@@ -248,7 +251,13 @@ def draw_character_subscreen(surface, hero):
     mp_txt = font_med.render(f"Mana: {hero['mp']} / {hero['max_mp']}", True, (120, 180, 255))
 
     atk_str = f"Attack: {hero['weapon']['min_atk']}-{hero['weapon']['max_atk']}" if hero["weapon"] else "Attack: 0"
-    def_str = f"Defense: {hero['armor']['min_def']}-{hero['armor']['max_def']}" if hero.get("armor") else "Defense: 0"
+
+    armor = hero.get("armor")
+    shield = hero.get("shield")
+    min_def = (armor["min_def"] if armor else 0) + (shield["min_def"] if shield else 0)
+    max_def = (armor["max_def"] if armor else 0) + (shield["max_def"] if shield else 0)
+    def_str = f"Defense: {min_def}-{max_def}" if (armor or shield) else "Defense: 0"
+
     atk_txt = font_med.render(atk_str, True, (220, 120, 120))
     def_txt = font_med.render(def_str, True, (120, 160, 220))
 
@@ -277,6 +286,7 @@ def draw_character_subscreen(surface, hero):
 
     armor_slot_rect = pygame.Rect(sil_center_x - 20, sil_center_y - 40, 40, 40)
     weapon_slot_rect = pygame.Rect(sil_center_x - 80, sil_center_y - 20, 40, 40)
+    shield_slot_rect = pygame.Rect(sil_center_x + 40, sil_center_y - 20, 40, 40)
     silhouette_drop_rect = pygame.Rect(sil_center_x - 90, sil_center_y - 100, 180, 150)
 
     # Armor slot
@@ -292,6 +302,13 @@ def draw_character_subscreen(surface, hero):
     if hero["weapon"] is not None:
         w_icon = get_item_icon(hero["weapon"])
         surface.blit(w_icon, w_icon.get_rect(center=weapon_slot_rect.center))
+
+    # Shield slot
+    pygame.draw.rect(surface, (30, 30, 38), shield_slot_rect)
+    pygame.draw.rect(surface, (110, 100, 70), shield_slot_rect, 2)
+    if shield is not None:
+        s_icon = get_item_icon(shield)
+        surface.blit(s_icon, s_icon.get_rect(center=shield_slot_rect.center))
 
     # 10 Inventory Slots (Right Hand Side)
     inv_start_x = bg_rect.right - 340
@@ -343,6 +360,10 @@ def draw_character_subscreen(surface, hero):
             _dragged_item = hero["armor"]
             _drag_source = ("armor", None)
             hero["armor"] = None
+        elif shield_slot_rect.collidepoint(mouse_pos) and hero.get("shield"):
+            _dragged_item = hero["shield"]
+            _drag_source = ("shield", None)
+            hero["shield"] = None
         else:
             for i, rect in enumerate(inv_slot_rects):
                 if rect.collidepoint(mouse_pos) and hero["inventory"][i]:
@@ -376,14 +397,19 @@ def draw_character_subscreen(surface, hero):
                 _return_item(hero, _dragged_item, _drag_source)
                 target_placed = True
         else:
-            # Fall back to your existing weapon/armor/inventory slot drop logic...
             item_is_weapon = "min_atk" in _dragged_item or _dragged_item.get("type") == "weapon"
-            item_is_armor = "min_def" in _dragged_item or _dragged_item.get("type") == "armor"
+            item_is_shield = _dragged_item.get("type") == "shield"
+            item_is_armor = not item_is_shield and ("min_def" in _dragged_item or _dragged_item.get("type") == "armor")
 
             is_weapon_drop = weapon_slot_rect.collidepoint(mouse_pos) or (
-                    silhouette_drop_rect.collidepoint(mouse_pos) and mouse_pos[0] < sil_center_x)
+                    silhouette_drop_rect.collidepoint(mouse_pos) and mouse_pos[0] < sil_center_x - 20
+            )
+            is_shield_drop = shield_slot_rect.collidepoint(mouse_pos) or (
+                    silhouette_drop_rect.collidepoint(mouse_pos) and mouse_pos[0] > sil_center_x + 20
+            )
             is_armor_drop = armor_slot_rect.collidepoint(mouse_pos) or (
-                    silhouette_drop_rect.collidepoint(mouse_pos) and mouse_pos[0] >= sil_center_x)
+                    silhouette_drop_rect.collidepoint(mouse_pos) and not is_weapon_drop and not is_shield_drop
+            )
 
             if is_weapon_drop and item_is_weapon:
                 allowed = _dragged_item.get("allowed_classes", ["Warrior", "Ranger", "Mage"])
@@ -408,6 +434,19 @@ def draw_character_subscreen(surface, hero):
                 else:
                     _return_item(hero, _dragged_item, _drag_source)
                     target_placed = True
+
+            elif is_shield_drop and item_is_shield:
+                allowed = _dragged_item.get("allowed_classes", ["Warrior", "Ranger", "Mage"])
+                if hero["class"] in allowed:
+                    old_shield = hero.get("shield")
+                    hero["shield"] = _dragged_item
+                    target_placed = True
+                    if old_shield:
+                        _return_item(hero, old_shield, _drag_source)
+                else:
+                    _return_item(hero, _dragged_item, _drag_source)
+                    target_placed = True
+
             else:
                 for i, rect in enumerate(inv_slot_rects):
                     if rect.collidepoint(mouse_pos):
@@ -452,6 +491,12 @@ def draw_character_subscreen(surface, hero):
         hover_title = f"Armor: {hero['armor']['name']}"
         hover_stats = f"Def: {hero['armor']['min_def']}-{hero['armor']['max_def']}"
         allowed_str = get_class_abbrev_str(hero['armor'].get("allowed_classes", []))
+        hover_classes = f"Classes: {allowed_str}"
+    elif shield_slot_rect.collidepoint(mouse_pos) and hero.get("shield"):
+        hovered_item = hero["shield"]
+        hover_title = f"Shield: {hero['shield']['name']}"
+        hover_stats = f"Def: {hero['shield']['min_def']}-{hero['shield']['max_def']}"
+        allowed_str = get_class_abbrev_str(hero['shield'].get("allowed_classes", []))
         hover_classes = f"Classes: {allowed_str}"
     else:
         # Check inventory slots for hovers
@@ -510,6 +555,8 @@ def _return_item(hero, item, source):
         hero["weapon"] = item
     elif stype == "armor":
         hero["armor"] = item
+    elif stype == "shield":
+        hero["shield"] = item
     elif stype == "inventory":
         if hero["inventory"][idx] is None:
             hero["inventory"][idx] = item
