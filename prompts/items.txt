@@ -27,3 +27,6 @@ bronze ring
 
 small shield
 "Pixel art icon of a tiny round all-wood buckler, compact circular plank design, wooden center boss, wide white margin around edges, centered facing forward. Clean outlines, high quality 16-bit RPG inventory icon. Size: 40x40 pixels. White background."
+
+bardiche
+"Pixel art icon of a medieval bardiche polearm, single-sided long crescent iron blade mounted to one side of a wooden shaft, oriented diagonally from bottom-left to top-right. Clean outlines, high quality pixel art, suitable for a 16-bit RPG inventory. Size: 40x40 pixels. White background."

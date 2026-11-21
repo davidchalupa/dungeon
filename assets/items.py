@@ -61,6 +61,16 @@ ITEMS = {
         "path": "images/small-shield.png",
         "price": 40,
     },
+    "bardiche": {
+        "name": "Bardiche",
+        "type": "weapon",
+        "two_handed": True,
+        "min_atk": 6,
+        "max_atk": 16,
+        "allowed_classes": ["Warrior", "Ranger"],
+        "path": "images/bardiche.png",
+        "price": 180,
+    },
 }
 
 ITEM_ICONS = {}

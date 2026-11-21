@@ -414,11 +414,27 @@ def draw_character_subscreen(surface, hero):
             if is_weapon_drop and item_is_weapon:
                 allowed = _dragged_item.get("allowed_classes", ["Warrior", "Ranger", "Mage"])
                 if hero["class"] in allowed:
-                    old_weapon = hero["weapon"]
-                    hero["weapon"] = _dragged_item
-                    target_placed = True
-                    if old_weapon:
-                        _return_item(hero, old_weapon, _drag_source)
+                    # Two-handed weapons cannot be used alongside a shield
+                    if _dragged_item.get("two_handed") and hero.get("shield"):
+                        placed_shield = False
+                        for i in range(10):
+                            if hero["inventory"][i] is None:
+                                hero["inventory"][i] = hero["shield"]
+                                placed_shield = True
+                                break
+                        if placed_shield:
+                            hero["shield"] = None
+                        else:
+                            # Inventory full: cannot unequip shield to equip 2H weapon
+                            _return_item(hero, _dragged_item, _drag_source)
+                            target_placed = True
+
+                    if not target_placed:
+                        old_weapon = hero["weapon"]
+                        hero["weapon"] = _dragged_item
+                        target_placed = True
+                        if old_weapon:
+                            _return_item(hero, old_weapon, _drag_source)
                 else:
                     _return_item(hero, _dragged_item, _drag_source)
                     target_placed = True
@@ -437,7 +453,8 @@ def draw_character_subscreen(surface, hero):
 
             elif is_shield_drop and item_is_shield:
                 allowed = _dragged_item.get("allowed_classes", ["Warrior", "Ranger", "Mage"])
-                if hero["class"] in allowed:
+                has_two_handed_weapon = bool(hero.get("weapon") and hero["weapon"].get("two_handed"))
+                if hero["class"] in allowed and not has_two_handed_weapon:
                     old_shield = hero.get("shield")
                     hero["shield"] = _dragged_item
                     target_placed = True
@@ -482,7 +499,8 @@ def draw_character_subscreen(surface, hero):
 
     if weapon_slot_rect.collidepoint(mouse_pos) and hero["weapon"]:
         hovered_item = hero["weapon"]
-        hover_title = f"Weapon: {hero['weapon']['name']}"
+        two_hand_tag = " (2H)" if hero["weapon"].get("two_handed") else ""
+        hover_title = f"Weapon: {hero['weapon']['name']}{two_hand_tag}"
         hover_stats = f"Atk: {hero['weapon']['min_atk']}-{hero['weapon']['max_atk']}"
         allowed_str = get_class_abbrev_str(hero['weapon'].get("allowed_classes", []))
         hover_classes = f"Classes: {allowed_str}"
